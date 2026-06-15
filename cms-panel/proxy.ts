@@ -25,7 +25,8 @@ export async function proxy(request: NextRequest) {
 
   const isProtected = request.nextUrl.pathname.startsWith('/dashboard') ||
     request.nextUrl.pathname.startsWith('/messages') ||
-    request.nextUrl.pathname.startsWith('/employees')
+    request.nextUrl.pathname.startsWith('/employees') ||
+    request.nextUrl.pathname.startsWith('/admin')
 
   if (isProtected && !user) {
     return NextResponse.redirect(new URL('/login', request.url))
