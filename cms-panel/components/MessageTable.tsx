@@ -11,7 +11,7 @@ const STATUS_STYLES: Record<MessageStatus, string> = {
 
 function TargetLabel({ type, value }: { type: string; value: string | null }) {
   if (type === 'all') return <span>All Employees</span>
-  return <span>{value}</span>
+  return <span>{value ?? '—'}</span>
 }
 
 export default function MessageTable({ messages }: { messages: Message[] }) {
@@ -39,7 +39,7 @@ export default function MessageTable({ messages }: { messages: Message[] }) {
                 </td>
                 <td className="px-4 py-3">
                   <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium capitalize ${STATUS_STYLES[status]}`}>
-                    {status === 'live' ? 'Live' : status.charAt(0).toUpperCase() + status.slice(1)}
+                    {status}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-gray-500">

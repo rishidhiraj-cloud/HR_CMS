@@ -22,13 +22,13 @@ describe('MessageTable', () => {
 
   it('shows Live badge for published message', () => {
     render(<MessageTable messages={[base]} />)
-    expect(screen.getByText('Live')).toBeInTheDocument()
+    expect(screen.getByText(/live/i)).toBeInTheDocument()
   })
 
   it('shows Scheduled badge for scheduled message', () => {
     const msg = { ...base, published_at: null, scheduled_at: new Date().toISOString() }
     render(<MessageTable messages={[msg]} />)
-    expect(screen.getByText('Scheduled')).toBeInTheDocument()
+    expect(screen.getByText(/scheduled/i)).toBeInTheDocument()
   })
 
   it('shows All Employees when target_type is all', () => {
