@@ -58,6 +58,9 @@ export default function MessageForm({ initial, messageId }: Props) {
     setSaving(true)
 
     const supabase = getBrowserClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setError('Not authenticated'); setSaving(false); return }
+
     const payload = {
       title: title.trim(),
       content_html: editor?.getHTML() ?? '',
@@ -72,7 +75,7 @@ export default function MessageForm({ initial, messageId }: Props) {
       const { error } = await supabase.from('messages').update(payload).eq('id', messageId)
       dbError = error
     } else {
-      const { error } = await supabase.from('messages').insert(payload)
+      const { error } = await supabase.from('messages').insert({ ...payload, created_by: user.id })
       dbError = error
     }
 
