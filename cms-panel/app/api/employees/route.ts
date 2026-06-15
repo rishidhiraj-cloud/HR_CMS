@@ -13,6 +13,9 @@ export async function POST(req: Request) {
   if (!name || !email || !mobile || !password || !department || !role) {
     return NextResponse.json({ error: 'All fields required' }, { status: 400 })
   }
+  if (password.length < 6) {
+    return NextResponse.json({ error: 'Password must be at least 6 characters' }, { status: 400 })
+  }
 
   const adminSupabase = createServiceClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -35,6 +38,7 @@ export async function POST(req: Request) {
     name,
     email,
     mobile,
+    password,
     department,
     role,
   })

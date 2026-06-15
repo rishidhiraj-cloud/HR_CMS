@@ -5,12 +5,27 @@ import { useRouter } from 'next/navigation'
 import EmployeeForm from '@/components/EmployeeForm'
 import type { Employee } from '@/lib/types'
 
+function PasswordCell({ password }: { password: string }) {
+  const [visible, setVisible] = useState(false)
+  return (
+    <span className="flex items-center gap-1">
+      <span className="font-mono">{visible ? password : '••••••••'}</span>
+      <button
+        onClick={() => setVisible(v => !v)}
+        className="text-xs text-indigo-500 hover:text-indigo-700 ml-1"
+      >
+        {visible ? 'Hide' : 'Show'}
+      </button>
+    </span>
+  )
+}
+
 export default function EmployeesClient({ employees }: { employees: Employee[] }) {
   const router = useRouter()
   const [showForm, setShowForm] = useState(false)
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
+    <div className="max-w-5xl mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <Link href="/dashboard" className="text-gray-400 hover:text-gray-600 text-sm">← Dashboard</Link>
@@ -39,6 +54,7 @@ export default function EmployeesClient({ employees }: { employees: Employee[] }
               <th className="text-left px-4 py-3 font-medium text-gray-600">Name</th>
               <th className="text-left px-4 py-3 font-medium text-gray-600">Email</th>
               <th className="text-left px-4 py-3 font-medium text-gray-600">Mobile</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-600">Password</th>
               <th className="text-left px-4 py-3 font-medium text-gray-600">Department</th>
               <th className="text-left px-4 py-3 font-medium text-gray-600">Designation</th>
             </tr>
@@ -49,6 +65,7 @@ export default function EmployeesClient({ employees }: { employees: Employee[] }
                 <td className="px-4 py-3 font-medium text-gray-900">{emp.name}</td>
                 <td className="px-4 py-3 text-gray-600">{emp.email}</td>
                 <td className="px-4 py-3 text-gray-600">{emp.mobile}</td>
+                <td className="px-4 py-3 text-gray-600"><PasswordCell password={emp.password} /></td>
                 <td className="px-4 py-3 text-gray-600">{emp.department}</td>
                 <td className="px-4 py-3 text-gray-600">{emp.role}</td>
               </tr>
