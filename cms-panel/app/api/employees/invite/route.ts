@@ -1,21 +1,33 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient as createServiceClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
 
 export async function POST(req: Request) {
+  // Verify caller is an authenticated HR user
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const { name, email, department, role } = await req.json()
   if (!name || !email || !department || !role) {
     return NextResponse.json({ error: 'All fields required' }, { status: 400 })
   }
 
-  const supabase = createClient(
+  const adminSupabase = createServiceClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  const { data: authData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(email)
+  const { data: authData, error: inviteError } = await adminSupabase.auth.admin.inviteUserByEmail(email)
   if (inviteError) return NextResponse.json({ error: inviteError.message }, { status: 500 })
 
-  const { error: dbError } = await supabase.from('employees').insert({
+  if (!authData?.user) {
+    return NextResponse.json({ error: 'Failed to create auth user' }, { status: 500 })
+  }
+
+  const { error: dbError } = await adminSupabase.from('employees').insert({
     id: authData.user.id,
     name,
     email,
