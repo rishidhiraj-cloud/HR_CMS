@@ -1,0 +1,36 @@
+{
+  "name": "hr-widget",
+  "version": "1.0.0",
+  "description": "HR message widget for employees",
+  "main": "dist/main/index.js",
+  "scripts": {
+    "dev": "concurrently \"vite build --watch --mode development\" \"electron .\"",
+    "build": "vite build && tsc -p tsconfig.main.json",
+    "dist": "npm run build && electron-builder",
+    "test": "jest"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/jest": "^30.0.0",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.2",
+    "concurrently": "^10.0.3",
+    "electron": "^30.5.1",
+    "electron-builder": "^26.15.3",
+    "jest": "^30.4.2",
+    "jest-environment-jsdom": "^30.4.1",
+    "ts-jest": "^29.4.11",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.16"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.108.2",
+    "better-sqlite3": "^12.10.1",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  }
+}
