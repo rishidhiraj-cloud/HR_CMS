@@ -1,6 +1,7 @@
 import { app, ipcMain, BrowserWindow } from 'electron'
 import path from 'path'
 import { createClient } from '@supabase/supabase-js'
+import WebSocket from 'ws'
 import { createTray, setBadge } from './tray'
 import { createPopupWindow, createFeedWindow } from './windows'
 import { SeenStore } from './seen-store'
@@ -10,7 +11,9 @@ import type { Message, Employee } from '../shared/types'
 const SUPABASE_URL = 'https://ejkhlnmebqzbvpetynbb.supabase.co'
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqa2hsbm1lYnF6YnZwZXR5bmJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1MDIxNTksImV4cCI6MjA5NzA3ODE1OX0.Z7PQ6BCRpy3HcDUVk6TwverRIGUKA0sTku1rRIQm_yw'
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  realtime: { transport: WebSocket as unknown as typeof globalThis.WebSocket },
+})
 
 let seenStore: SeenStore
 let authStore: AuthStore
@@ -149,4 +152,4 @@ ipcMain.handle('messages:markSeen', (_event, id: string) => {
 })
 
 // Keep app alive in tray even when all windows are closed
-app.on('window-all-closed', e => e.preventDefault())
+app.on('window-all-closed', (e: { preventDefault: () => void }) => e.preventDefault())

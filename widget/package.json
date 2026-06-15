@@ -4,12 +4,14 @@
   "description": "HR message widget for employees",
   "main": "dist/main/index.js",
   "scripts": {
-    "dev": "concurrently \"vite build --watch --mode development\" \"electron .\"",
+    "postinstall": "electron-rebuild -f -w better-sqlite3",
+    "dev": "tsc -p tsconfig.main.json && concurrently \"vite build --watch --mode development\" \"tsc -w --preserveWatchOutput -p tsconfig.main.json\" \"electron .\"",
     "build": "vite build && tsc -p tsconfig.main.json",
     "dist": "npm run build && electron-builder",
     "test": "jest"
   },
   "devDependencies": {
+    "@electron/rebuild": "^4.0.4",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
@@ -29,8 +31,10 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.108.2",
+    "@types/ws": "^8.18.1",
     "better-sqlite3": "^12.10.1",
     "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "react-dom": "^19.2.7",
+    "ws": "^8.21.0"
   }
 }
