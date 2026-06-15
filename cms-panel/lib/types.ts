@@ -16,6 +16,7 @@ export interface Employee {
   id: string
   name: string
   email: string
+  mobile: string
   department: string
   role: string
 }

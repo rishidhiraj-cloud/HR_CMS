@@ -38,8 +38,9 @@ export default function EmployeesClient({ employees }: { employees: Employee[] }
             <tr>
               <th className="text-left px-4 py-3 font-medium text-gray-600">Name</th>
               <th className="text-left px-4 py-3 font-medium text-gray-600">Email</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-600">Mobile</th>
               <th className="text-left px-4 py-3 font-medium text-gray-600">Department</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Role</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-600">Designation</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -47,6 +48,7 @@ export default function EmployeesClient({ employees }: { employees: Employee[] }
               <tr key={emp.id} className="hover:bg-gray-50">
                 <td className="px-4 py-3 font-medium text-gray-900">{emp.name}</td>
                 <td className="px-4 py-3 text-gray-600">{emp.email}</td>
+                <td className="px-4 py-3 text-gray-600">{emp.mobile}</td>
                 <td className="px-4 py-3 text-gray-600">{emp.department}</td>
                 <td className="px-4 py-3 text-gray-600">{emp.role}</td>
               </tr>

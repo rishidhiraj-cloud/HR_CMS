@@ -7,13 +7,15 @@ describe('EmployeeForm', () => {
     render(<EmployeeForm onSuccess={jest.fn()} />)
     expect(screen.getByPlaceholderText('Full name')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('work@company.com')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Mobile number')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Password')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('e.g. Sales')).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('e.g. Manager')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('e.g. Senior Manager')).toBeInTheDocument()
   })
 
   it('shows error if name is empty on submit', async () => {
     render(<EmployeeForm onSuccess={jest.fn()} />)
-    await userEvent.click(screen.getByText('Send Invite'))
+    await userEvent.click(screen.getByText('Save'))
     expect(await screen.findByText('Name is required')).toBeInTheDocument()
   })
 })
