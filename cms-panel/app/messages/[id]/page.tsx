@@ -1,7 +1,7 @@
-import Link from 'next/link'
 import { redirect, notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase-server'
 import MessageForm from '@/components/MessageForm'
+import AppLayout from '@/components/AppLayout'
 import type { Message } from '@/lib/types'
 
 export default async function EditMessagePage({
@@ -15,22 +15,22 @@ export default async function EditMessagePage({
 
   const { id } = await params
 
-  const { data: message } = await supabase
-    .from('messages')
-    .select('*')
-    .eq('id', id)
-    .single()
+  const [{ data: message }, { data: departments }, { data: levels }] = await Promise.all([
+    supabase.from('messages').select('*').eq('id', id).single(),
+    supabase.from('departments').select('name').order('name'),
+    supabase.from('levels').select('name').order('name'),
+  ])
 
   if (!message) notFound()
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8">
-      <div className="flex items-center gap-3 mb-6">
-        <Link href="/dashboard" className="text-gray-400 hover:text-gray-600 text-sm">← Back</Link>
-        <span className="text-gray-300">|</span>
-        <h1 className="text-lg font-bold text-gray-900">Edit Message</h1>
-      </div>
-      <MessageForm initial={message as Message} messageId={id} />
-    </div>
+    <AppLayout title="Edit Message">
+      <MessageForm
+        initial={message as Message}
+        messageId={id}
+        departments={(departments ?? []).map(d => d.name)}
+        levels={(levels ?? []).map(l => l.name)}
+      />
+    </AppLayout>
   )
 }

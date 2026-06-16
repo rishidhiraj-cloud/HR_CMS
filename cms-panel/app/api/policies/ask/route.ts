@@ -60,29 +60,44 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Search error' }, { status: 500 })
   }
 
-  if (!chunks || chunks.length === 0) {
-    return NextResponse.json({
-      answer: "I couldn't find relevant information in the documents available to you. Please try rephrasing your question or contact HR directly.",
-      sources: [],
-    })
-  }
+  const hasChunks = chunks && chunks.length > 0
 
-  const context = (chunks as Chunk[])
-    .map(c => `[From: ${c.document_name}]\n${c.chunk_text}`)
-    .join('\n\n---\n\n')
+  const context = hasChunks
+    ? (chunks as Chunk[]).map(c => `[From: ${c.document_name}]\n${c.chunk_text}`).join('\n\n---\n\n')
+    : null
+
+  const systemPrompt = hasChunks
+    ? `You are a helpful HR policy assistant for Modicare employees.
+
+LANGUAGE RULE: Detect the language of the employee's question and respond in that SAME language. If the question is in Hindi (or Hinglish), respond in Hindi. If in English, respond in English.
+
+Answer questions based ONLY on the policy documents provided. Format using markdown: **bold** for key terms, *italic* for emphasis, bullet points (- item) for lists, blank line between topics. Be concise, accurate, and friendly. If the answer is not clearly in the documents, say so and suggest contacting HR directly. Never invent policies.`
+    : `You are a helpful HR assistant for Modicare employees.
+
+LANGUAGE RULE: Detect the language of the employee's question and respond in that SAME language. If the question is in Hindi (or Hinglish), respond in Hindi. If in English, respond in English.
+
+No relevant policy documents were found for this question. Politely tell the employee you couldn't find relevant information in the available documents and suggest they contact HR directly. Keep it brief and friendly.`
+
+  const userContent = context
+    ? `Policy Documents:\n\n${context}\n\n---\n\nEmployee Question: ${question}`
+    : `Employee Question: ${question}`
 
   const response = await anthropic.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 600,
-    system: `You are a helpful HR policy assistant. Answer employee questions based ONLY on the policy documents provided below. Format your responses using markdown: use **bold** for important terms and key information, *italic* for emphasis, use bullet points (- item) for lists, and separate distinct topics into clear paragraphs with a blank line between them. Be concise, accurate, and friendly. If the exact answer is not clearly stated in the documents, acknowledge that and suggest the employee contact HR directly. Never make up policies.`,
-    messages: [{
-      role: 'user',
-      content: `Policy Documents:\n\n${context}\n\n---\n\nEmployee Question: ${question}`,
-    }],
+    system: systemPrompt,
+    messages: [{ role: 'user', content: userContent }],
   })
 
   const answer = response.content[0].type === 'text' ? response.content[0].text : ''
-  const sources = [...new Set((chunks as Chunk[]).map(c => c.document_name))]
+  const sources = hasChunks ? [...new Set((chunks as Chunk[]).map(c => c.document_name))] : []
+
+  // Log query for analytics (fire-and-forget)
+  svc.from('search_logs').insert({
+    user_id: user.id,
+    query: question.trim(),
+    result_count: chunks.length,
+  }).then(() => {})
 
   return NextResponse.json({ answer, sources })
 }

@@ -29,6 +29,11 @@ export class SeenStore {
     return messageIds.filter(id => !this.hasSeen(id))
   }
 
+  getAllSeen(): string[] {
+    const rows = this.db.prepare('select message_id from seen_messages').all() as { message_id: string }[]
+    return rows.map(r => r.message_id)
+  }
+
   close(): void {
     this.db.close()
   }

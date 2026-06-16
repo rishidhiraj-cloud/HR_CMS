@@ -2,6 +2,7 @@
   "name": "hr-widget",
   "version": "1.0.0",
   "description": "HR message widget for employees",
+  "author": "Modi Enterprise",
   "main": "dist/main/index.js",
   "scripts": {
     "postinstall": "electron-rebuild -f -w better-sqlite3",

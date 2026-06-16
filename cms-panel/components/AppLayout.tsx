@@ -41,6 +41,24 @@ const navItems = [
     ),
   },
   {
+    label: 'Polls',
+    href: '/polls',
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Analytics',
+    href: '/analytics',
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+      </svg>
+    ),
+  },
+  {
     label: 'CMS Users',
     href: '/admin/users',
     icon: (
@@ -81,11 +99,11 @@ export default function AppLayout({ children, title, action, userName }: Props) 
               className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-bold shrink-0"
               style={{ background: 'linear-gradient(135deg, #0d9488, #0f766e)' }}
             >
-              HR
+              MC
             </div>
             <div>
-              <p className="text-sm font-bold text-white leading-tight">HR Admin</p>
-              <p className="text-xs leading-tight" style={{ color: 'rgba(255,255,255,0.45)' }}>Broadcast Panel</p>
+              <p className="text-sm font-bold text-white leading-tight">M-Connect</p>
+              <p className="text-xs leading-tight" style={{ color: 'rgba(255,255,255,0.45)' }}>HR Panel</p>
             </div>
           </div>
         </div>

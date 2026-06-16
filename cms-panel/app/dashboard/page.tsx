@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase-server'
 import MessageTable from '@/components/MessageTable'
-import LogoutButton from '@/components/LogoutButton'
+import AppLayout from '@/components/AppLayout'
 import type { Message } from '@/lib/types'
 
 export default async function DashboardPage({
@@ -13,12 +13,6 @@ export default async function DashboardPage({
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
-
-  const { data: hrUser } = await supabase
-    .from('hr_users')
-    .select('name')
-    .eq('id', user.id)
-    .single()
 
   const params = await searchParams
   const filter = params.filter ?? 'all'
@@ -31,60 +25,55 @@ export default async function DashboardPage({
   if (filter === 'scheduled') query = query.is('published_at', null).not('scheduled_at', 'is', null)
   if (filter === 'live') query = query.not('published_at', 'is', null)
 
-  const { data: messages } = await query
+  const [{ data: hrUser }, { data: messages }, { data: readData }] = await Promise.all([
+    supabase.from('hr_users').select('name').eq('id', user.id).single(),
+    query,
+    supabase.from('message_reads').select('message_id'),
+  ])
+
+  // Count reads per message
+  const readCounts: Record<string, number> = {}
+  readData?.forEach(r => {
+    readCounts[r.message_id] = (readCounts[r.message_id] ?? 0) + 1
+  })
+
   const tabs = ['all', 'live', 'scheduled']
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">HR Announcements</h1>
-          {hrUser?.name && (
-            <p className="text-sm text-gray-500 mt-0.5">Welcome back, {hrUser.name} 👋</p>
-          )}
-        </div>
-        <div className="flex items-center gap-4">
-          <Link
-            href="/messages/new"
-            className="bg-indigo-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-indigo-700"
-          >
-            + New Message
-          </Link>
-          <LogoutButton />
-        </div>
-      </div>
-
-      <div className="flex gap-2 mb-4">
+    <AppLayout
+      title="Announcements"
+      userName={hrUser?.name}
+      action={
+        <Link
+          href="/messages/new"
+          className="text-white text-sm font-medium px-4 py-2 rounded-xl transition-all"
+          style={{
+            background: 'linear-gradient(135deg, #0d9488, #0891b2)',
+            boxShadow: '0 4px 14px rgba(13,148,136,0.30)',
+          }}
+        >
+          + New Message
+        </Link>
+      }
+    >
+      <div className="flex gap-2 mb-6">
         {tabs.map(tab => (
           <Link
             key={tab}
             href={`/dashboard?filter=${tab}`}
-            className={`px-3 py-1.5 rounded text-sm capitalize ${
+            className="px-4 py-1.5 rounded-full text-sm font-medium capitalize transition-all"
+            style={
               filter === tab
-                ? 'bg-indigo-600 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
+                ? { background: 'rgba(13,148,136,0.30)', color: '#5eead4', border: '1px solid rgba(13,148,136,0.40)' }
+                : { background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.55)', border: '1px solid rgba(255,255,255,0.10)' }
+            }
           >
             {tab}
           </Link>
         ))}
-        <div className="ml-auto flex gap-2">
-          <Link
-            href="/employees"
-            className="px-3 py-1.5 rounded text-sm bg-gray-100 text-gray-600 hover:bg-gray-200"
-          >
-            Employees
-          </Link>
-          <Link
-            href="/admin/users"
-            className="px-3 py-1.5 rounded text-sm bg-gray-100 text-gray-600 hover:bg-gray-200"
-          >
-            CMS Users
-          </Link>
-        </div>
       </div>
 
-      <MessageTable messages={(messages as Message[]) ?? []} />
-    </div>
+      <MessageTable messages={(messages as Message[]) ?? []} readCounts={readCounts} />
+    </AppLayout>
   )
 }

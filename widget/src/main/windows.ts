@@ -1,13 +1,13 @@
 import { BrowserWindow, screen } from 'electron'
 import path from 'path'
 
-const POPUP_WIDTH = 380
-const POPUP_HEIGHT = 400
-const FEED_WIDTH = 300
-const FEED_HEIGHT = 420
+const POPUP_WIDTH = 494
+const POPUP_HEIGHT = 520
+const FEED_WIDTH = 390
+const FEED_HEIGHT = 546
 
 function getRendererPath(name: string): string {
-  return `file://${path.join(__dirname, `../../dist/renderer/${name}/index.html`)}`
+  return path.join(__dirname, `../../dist/renderer/${name}/index.html`)
 }
 
 export function createPopupWindow(): BrowserWindow {
@@ -29,20 +29,40 @@ export function createPopupWindow(): BrowserWindow {
     },
   })
 
-  win.loadURL(getRendererPath('popup'))
+  win.loadFile(getRendererPath('popup'))
+  return win
+}
+
+export function createPollPopupWindow(): BrowserWindow {
+  const { width, height } = screen.getPrimaryDisplay().workAreaSize
+
+  const win = new BrowserWindow({
+    width: POPUP_WIDTH,
+    height: 180,
+    x: width - POPUP_WIDTH - 20,
+    y: height - 180 - 20,
+    frame: false,
+    alwaysOnTop: true,
+    resizable: false,
+    skipTaskbar: true,
+    webPreferences: {
+      preload: path.join(__dirname, '../preload/index.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  })
+
+  win.loadFile(getRendererPath('popup'), { query: { mode: 'poll' } })
   return win
 }
 
 export function createFeedWindow(trayBounds: Electron.Rectangle): BrowserWindow {
-  const { width } = screen.getPrimaryDisplay().workAreaSize
+  const { width: screenWidth } = screen.getPrimaryDisplay().workAreaSize
 
-  const x = process.platform === 'darwin'
-    ? Math.round(trayBounds.x - FEED_WIDTH / 2)
-    : width - FEED_WIDTH - 10
-
-  const y = process.platform === 'darwin'
-    ? trayBounds.y + trayBounds.height + 4
-    : trayBounds.y - FEED_HEIGHT - 4
+  // Position below the tray icon, clamped to screen
+  const rawX = Math.round(trayBounds.x + trayBounds.width / 2 - FEED_WIDTH / 2)
+  const x = Math.max(8, Math.min(rawX, screenWidth - FEED_WIDTH - 8))
+  const y = trayBounds.y + trayBounds.height + 4
 
   const win = new BrowserWindow({
     width: FEED_WIDTH,
@@ -60,7 +80,12 @@ export function createFeedWindow(trayBounds: Electron.Rectangle): BrowserWindow 
     },
   })
 
-  win.loadURL(getRendererPath('feed'))
-  win.on('blur', () => win.hide())
+  win.loadFile(getRendererPath('feed'))
+
+  // Small delay before enabling blur-to-hide so window doesn't vanish immediately
+  let blurEnabled = false
+  setTimeout(() => { blurEnabled = true }, 300)
+  win.on('blur', () => { if (blurEnabled) win.hide() })
+
   return win
 }

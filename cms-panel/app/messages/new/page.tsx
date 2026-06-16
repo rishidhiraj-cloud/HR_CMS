@@ -1,21 +1,24 @@
-import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase-server'
 import MessageForm from '@/components/MessageForm'
+import AppLayout from '@/components/AppLayout'
 
 export default async function NewMessagePage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  const [{ data: departments }, { data: levels }] = await Promise.all([
+    supabase.from('departments').select('name').order('name'),
+    supabase.from('levels').select('name').order('name'),
+  ])
+
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8">
-      <div className="flex items-center gap-3 mb-6">
-        <Link href="/dashboard" className="text-gray-400 hover:text-gray-600 text-sm">← Back</Link>
-        <span className="text-gray-300">|</span>
-        <h1 className="text-lg font-bold text-gray-900">New Message</h1>
-      </div>
-      <MessageForm />
-    </div>
+    <AppLayout title="New Message">
+      <MessageForm
+        departments={(departments ?? []).map(d => d.name)}
+        levels={(levels ?? []).map(l => l.name)}
+      />
+    </AppLayout>
   )
 }

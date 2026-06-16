@@ -20,6 +20,8 @@ export interface Employee {
   password: string
   department: string
   role: string
+  is_active: boolean
+  last_seen_at?: string | null
 }
 
 export interface HrUser {

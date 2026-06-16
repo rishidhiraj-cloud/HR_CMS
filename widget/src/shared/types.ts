@@ -15,6 +15,32 @@ export interface Employee {
   id: string
   name: string
   email: string
+  mobile: string
   department: string
   role: string
+  is_active: boolean
+}
+
+export interface HrDocument {
+  id: string
+  name: string
+  file_type: string
+  file_url: string | null
+  target_level: string | null
+}
+
+export interface Poll {
+  id: string
+  question: string
+  options: string[]
+  poll_type: string
+  target_type: string
+  target_value: string | null
+  status: string
+  expires_at: string | null
+  created_at: string
+  hasVoted: boolean
+  myVote: number | null
+  voteCounts: number[]
+  totalVotes: number
 }
