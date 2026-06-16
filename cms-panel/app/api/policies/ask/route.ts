@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
   const response = await anthropic.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 600,
-    system: `You are a helpful HR policy assistant. Answer employee questions based ONLY on the policy documents provided below. Be concise, accurate, and friendly. If the exact answer is not clearly stated in the documents, acknowledge that and suggest the employee contact HR directly. Never make up policies.`,
+    system: `You are a helpful HR policy assistant. Answer employee questions based ONLY on the policy documents provided below. Format your responses using markdown: use **bold** for important terms and key information, *italic* for emphasis, use bullet points (- item) for lists, and separate distinct topics into clear paragraphs with a blank line between them. Be concise, accurate, and friendly. If the exact answer is not clearly stated in the documents, acknowledge that and suggest the employee contact HR directly. Never make up policies.`,
     messages: [{
       role: 'user',
       content: `Policy Documents:\n\n${context}\n\n---\n\nEmployee Question: ${question}`,
