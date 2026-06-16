@@ -1,1 +1,32 @@
 @import "tailwindcss";
+
+body {
+  background: linear-gradient(135deg, #0a0f1e 0%, #0b2d3d 45%, #0a1f2a 100%);
+  min-height: 100vh;
+  color: #f1f5f9;
+}
+
+/* Glass card base */
+.glass {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+}
+
+.glass-strong {
+  background: rgba(255, 255, 255, 0.10);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+/* Prose override for dark background */
+.prose { color: white; }
+.prose p { color: white; }
+.prose strong { color: white; }
+
+/* Tiptap editor — dark text on white; colour-picker spans use inline style which wins naturally */
+.ProseMirror { color: #111827; caret-color: #111827; }
+.ProseMirror * { color: inherit; }
+
