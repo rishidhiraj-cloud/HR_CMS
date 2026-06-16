@@ -29,7 +29,7 @@ export default function UploadDocumentPage() {
       .from('levels')
       .select('id, name')
       .order('name')
-      .then(({ data }) => { if (data) setLevels(data) })
+      .then(({ data }: { data: Level[] | null }) => { if (data) setLevels(data) })
   }, [])
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
