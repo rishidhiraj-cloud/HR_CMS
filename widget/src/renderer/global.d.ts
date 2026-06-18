@@ -2,6 +2,7 @@ import type { Message, Employee, HrDocument, Poll } from '../shared/types'
 
 interface HrWidgetAPI {
   login(email: string, password: string): Promise<{ error?: string }>
+  loginWithMicrosoft(): Promise<{ error?: string }>
   logout(): Promise<void>
   getEmployee(): Promise<Employee | null>
   getMessages(): Promise<Message[]>

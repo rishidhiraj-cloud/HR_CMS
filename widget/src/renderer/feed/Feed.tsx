@@ -157,6 +157,7 @@ export default function Feed() {
   const [password, setPassword] = useState('')
   const [loginError, setLoginError] = useState('')
   const [loggingIn, setLoggingIn] = useState(false)
+  const [msLoggingIn, setMsLoggingIn] = useState(false)
   const [activeTab, setActiveTab] = useState<ActiveTab>('announcements')
 
   const [question, setQuestion] = useState('')
@@ -281,6 +282,20 @@ export default function Feed() {
     }
   }
 
+  async function handleMicrosoftLogin() {
+    setLoginError('')
+    setMsLoggingIn(true)
+    const result = await window.hrWidget.loginWithMicrosoft()
+    if (result?.error) {
+      setLoginError(result.error)
+      setMsLoggingIn(false)
+    } else {
+      const emp = await window.hrWidget.getEmployee()
+      setEmployee(emp ?? null)
+      setMsLoggingIn(false)
+    }
+  }
+
   async function handleLogout() {
     await window.hrWidget.logout()
     setEmployee(null)
@@ -354,14 +369,41 @@ export default function Feed() {
               <img src={modicareLogoUrl} alt="Modicare" style={{ height: 38, display: 'block' }} />
             </div>
           </div>
-          <p style={{ color: 'rgba(255,255,255,0.72)', fontSize: 12, textAlign: 'center', marginBottom: 22 }}>
+          <p style={{ color: 'rgba(255,255,255,0.72)', fontSize: 12, textAlign: 'center', marginBottom: 18 }}>
             Sign in with your employee account
           </p>
+
+          {/* Microsoft SSO button */}
+          <button
+            onClick={handleMicrosoftLogin}
+            disabled={msLoggingIn || loggingIn}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, width: '100%', padding: '9px 14px', background: '#ffffff', border: 'none', borderRadius: 8, cursor: msLoggingIn ? 'wait' : 'pointer', fontSize: 13, fontWeight: 600, color: '#1a1a1a', boxShadow: '0 2px 8px rgba(0,0,0,0.25)', opacity: msLoggingIn || loggingIn ? 0.75 : 1, marginBottom: 14 }}
+          >
+            {msLoggingIn ? (
+              <span style={{ width: 16, height: 16, border: '2px solid #ccc', borderTopColor: '#0078d4', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+                <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+                <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
+                <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+              </svg>
+            )}
+            {msLoggingIn ? 'Signing in…' : 'Sign in with Microsoft'}
+          </button>
+
+          {/* Divider */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+            <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.18)' }} />
+            <span style={{ color: 'rgba(255,255,255,0.40)', fontSize: 10 }}>or</span>
+            <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.18)' }} />
+          </div>
+
           <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required style={S.input} />
             <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required style={S.input} />
             {loginError && <p style={{ color: '#f87171', fontSize: 11, margin: 0 }}>{loginError}</p>}
-            <button type="submit" disabled={loggingIn} style={{ ...S.primaryBtn, opacity: loggingIn ? 0.7 : 1, marginTop: 4 }}>
+            <button type="submit" disabled={loggingIn || msLoggingIn} style={{ ...S.primaryBtn, opacity: loggingIn ? 0.7 : 1, marginTop: 4 }}>
               {loggingIn ? 'Signing in…' : 'Sign In'}
             </button>
           </form>

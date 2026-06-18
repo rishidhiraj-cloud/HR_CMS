@@ -52,7 +52,7 @@ export default function EmployeeForm({ departments, levels, initial, employeeId,
       }
     )
     const data = await res.json()
-    if (!res.ok) { setError(data.error); setSaving(false); return }
+    if (!res.ok) { setError(typeof data.error === 'string' && data.error ? data.error : 'Failed to save. Please try again.'); setSaving(false); return }
     onSuccess()
   }
 

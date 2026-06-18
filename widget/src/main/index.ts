@@ -1,5 +1,6 @@
 import { app, ipcMain, shell, BrowserWindow } from 'electron'
 import path from 'path'
+import crypto from 'crypto'
 import { createClient, RealtimeChannel } from '@supabase/supabase-js'
 import WebSocket from 'ws'
 import { createTray, setBadge } from './tray'
@@ -336,6 +337,132 @@ function isTargetedAtEmployee(msg: Message, emp: Employee | null): boolean {
 }
 
 // IPC handlers
+const MS_TENANT = '2f677235-821e-4598-83cf-43e43cdbc281'
+const MS_CLIENT = 'f61c34c6-45f7-4f90-aaf0-1f5566ca5c92'
+const MS_REDIRECT = 'hrwidget://auth/callback'
+
+ipcMain.handle('auth:loginMicrosoft', async () => {
+  // PKCE: generate code verifier + challenge (authorization code flow, no implicit token)
+  const codeVerifier = crypto.randomBytes(32).toString('base64url')
+  const codeChallenge = crypto.createHash('sha256').update(codeVerifier).digest('base64url')
+
+  const authUrl =
+    `https://login.microsoftonline.com/${MS_TENANT}/oauth2/v2.0/authorize` +
+    `?client_id=${MS_CLIENT}` +
+    `&response_type=code` +
+    `&redirect_uri=${encodeURIComponent(MS_REDIRECT)}` +
+    `&scope=${encodeURIComponent('openid email profile')}` +
+    `&response_mode=query` +
+    `&code_challenge=${codeChallenge}` +
+    `&code_challenge_method=S256`
+
+  return new Promise<{ error?: string }>((resolve) => {
+    const authWin = new BrowserWindow({
+      width: 520,
+      height: 680,
+      title: 'Sign in with Microsoft',
+      alwaysOnTop: true,
+      webPreferences: { nodeIntegration: false, contextIsolation: true },
+    })
+
+    let settled = false
+    const finish = (result: { error?: string }) => {
+      if (settled) return
+      settled = true
+      if (!authWin.isDestroyed()) authWin.close()
+      resolve(result)
+    }
+
+    const handleCallback = async (url: string) => {
+      if (!url.startsWith(MS_REDIRECT)) return
+      const params = new URL(url).searchParams
+      const errParam = params.get('error')
+      if (errParam) {
+        finish({ error: params.get('error_description') ?? 'Microsoft login failed' }); return
+      }
+      const code = params.get('code')
+      if (!code) { finish({ error: 'No authorization code received' }); return }
+
+      // Exchange code for tokens using PKCE
+      let idToken = ''
+      try {
+        const tokenRes = await fetch(
+          `https://login.microsoftonline.com/${MS_TENANT}/oauth2/v2.0/token`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+              client_id: MS_CLIENT,
+              grant_type: 'authorization_code',
+              code,
+              redirect_uri: MS_REDIRECT,
+              code_verifier: codeVerifier,
+            }).toString(),
+          }
+        )
+        const tokenData = await tokenRes.json()
+        if (tokenData.error) {
+          finish({ error: tokenData.error_description ?? tokenData.error }); return
+        }
+        idToken = tokenData.id_token ?? ''
+      } catch (err) {
+        finish({ error: 'Failed to exchange code with Microsoft' }); return
+      }
+
+      if (!idToken) { finish({ error: 'No identity token in Microsoft response' }); return }
+
+      // Decode the id_token JWT to get the user's email
+      let msEmail = ''
+      try {
+        const payload = JSON.parse(Buffer.from(idToken.split('.')[1], 'base64url').toString('utf8'))
+        msEmail = payload.email ?? payload.preferred_username ?? ''
+      } catch {
+        finish({ error: 'Could not read identity from Microsoft token' }); return
+      }
+
+      if (!msEmail) { finish({ error: 'Microsoft account has no email address' }); return }
+
+      // Look up employee via CMS API (uses service key server-side, bypasses RLS)
+      let emp: Employee | null = null
+      try {
+        const lookupRes = await fetch(`${CMS_BASE_URL}/api/auth/ms-login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idToken }),
+        })
+        const lookupData = await lookupRes.json()
+        if (!lookupRes.ok) { finish({ error: lookupData.error ?? 'Employee lookup failed' }); return }
+        emp = lookupData.employee as Employee
+      } catch {
+        finish({ error: 'Could not reach HR server. Check your connection.' }); return
+      }
+
+      currentEmployee = emp!
+      // Try to restore existing Supabase session (for RLS / CMS API calls)
+      const storedCreds = authStore.getCredentials()
+      if (storedCreds?.email === msEmail && storedCreds.accessToken) {
+        await supabase.auth.setSession({
+          access_token: storedCreds.accessToken,
+          refresh_token: storedCreds.refreshToken,
+        }).catch(() => {})
+      }
+      authStore.saveCredentials({ email: msEmail, accessToken: storedCreds?.accessToken ?? '', refreshToken: storedCreds?.refreshToken ?? '' })
+      subscribeToMessages(); startPolling(); startHeartbeat(); syncLocalReadsToSupabase()
+      await checkAndShowPopup(); await checkForNewPolls()
+      finish({})
+    }
+
+    authWin.webContents.on('will-redirect', (event, url) => {
+      if (url.startsWith(MS_REDIRECT)) { event.preventDefault(); handleCallback(url) }
+    })
+    authWin.webContents.on('will-navigate', (event, url) => {
+      if (url.startsWith(MS_REDIRECT)) { event.preventDefault(); handleCallback(url) }
+    })
+    authWin.on('closed', () => finish({ error: 'Login cancelled' }))
+    authWin.loadURL(authUrl)
+  })
+})
+
 ipcMain.handle('auth:login', async (_event, email: string, password: string) => {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password })
   if (error) {

@@ -36,7 +36,11 @@ export async function PUT(
   if (password) authUpdates.password = password
   if (Object.keys(authUpdates).length > 0) {
     const { error } = await admin.auth.admin.updateUserById(id, authUpdates)
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) {
+      const msg = error.message || JSON.stringify(error) || 'Failed to update auth credentials'
+      console.error('[employee PUT] auth update error:', msg)
+      return NextResponse.json({ error: msg }, { status: 500 })
+    }
   }
 
   const dbUpdate: Record<string, string> = { name, email, mobile, department, role }

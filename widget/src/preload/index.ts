@@ -3,6 +3,8 @@ import { contextBridge, ipcRenderer } from 'electron'
 contextBridge.exposeInMainWorld('hrWidget', {
   login: (email: string, password: string) =>
     ipcRenderer.invoke('auth:login', email, password),
+  loginWithMicrosoft: () =>
+    ipcRenderer.invoke('auth:loginMicrosoft'),
   logout: () => ipcRenderer.invoke('auth:logout'),
   getEmployee: () => ipcRenderer.invoke('auth:getEmployee'),
 
