@@ -42,9 +42,20 @@ dmg:
 win:
   icon: assets/icon.png
   target:
+    - target: msi
+      arch:
+        - x64
     - target: nsis
       arch:
         - x64
+
+msi:
+  # Stable GUID so future versions UPGRADE in place instead of installing twice.
+  upgradeCode: 8F4A1C72-3B6E-4D5A-9E21-7C0F2A6B8D14
+  warningsAsErrors: false
+  perMachine: true          # install for all users (enterprise deploy); requires elevation
+  runAfterFinish: true
+  shortcutName: HR Widget
 
 nsis:
   oneClick: false

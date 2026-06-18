@@ -18,6 +18,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 let seenStore: SeenStore
 let authStore: AuthStore
 let feedWindow: BrowserWindow | null = null
+let popupWindow: BrowserWindow | null = null
 let tray: ReturnType<typeof createTray> | null = null
 let currentEmployee: Employee | null = null
 let unreadCount = 0
@@ -184,10 +185,14 @@ async function checkForNewMessages() {
   const targeted = (data as Message[]).filter(m => isTargetedAtEmployee(m, currentEmployee))
   const unseenIds = seenStore.filterUnseen(targeted.map(m => m.id))
 
+  let anyNew = false
   for (const id of unseenIds) {
     const msg = targeted.find(m => m.id === id)!
-    notifyIfUnseen(msg)
+    if (registerUnseen(msg)) anyNew = true
   }
+  // Show a single coalesced popup for the whole batch (the popup itself
+  // shows the first unread + a "N more unread" link).
+  if (anyNew) showMessagePopup()
 }
 
 // Sync all locally-seen messages to Supabase message_reads (catches up after migration or re-install)
@@ -198,26 +203,54 @@ async function syncLocalReadsToSupabase() {
   const rows = seenIds.map(id => ({ message_id: id, employee_id: currentEmployee!.id }))
   const { error } = await supabase
     .from('message_reads')
-    .upsert(rows, { onConflict: 'message_id,employee_id' })
+    .upsert(rows, { onConflict: 'message_id,employee_id', ignoreDuplicates: true })
   if (error) console.error('[syncReads] error:', error.message)
   else console.log(`[syncReads] synced ${seenIds.length} reads`)
 }
 
-function notifyIfUnseen(msg: Message) {
-  if (!isTargetedAtEmployee(msg, currentEmployee)) return
-  if (seenStore.hasSeen(msg.id)) return
-  if (notifiedIds.has(msg.id)) return  // already notified this session
+// Register a new unseen message (badge + feed sync) without showing a popup.
+// Returns true if this message was newly registered this session.
+function registerUnseen(msg: Message): boolean {
+  if (!isTargetedAtEmployee(msg, currentEmployee)) return false
+  if (seenStore.hasSeen(msg.id)) return false
+  if (notifiedIds.has(msg.id)) return false  // already notified this session
 
   notifiedIds.add(msg.id)
   console.log('[notify] new message:', msg.title)
   unreadCount++
-  setBadge(tray!, unreadCount)
+  if (tray) setBadge(tray, unreadCount)
   feedWindow?.webContents.send('message:new', msg)
-  const popup = createPopupWindow()
-  popup.show()
+  return true
+}
+
+// Show (or reuse) the single announcement popup. The popup renderer fetches the
+// current unseen set itself, so one window is enough — never one per message.
+function showMessagePopup() {
+  if (popupWindow && !popupWindow.isDestroyed()) {
+    popupWindow.reload()  // refresh the unseen list shown in the existing popup
+    popupWindow.show()
+    return
+  }
+  popupWindow = createPopupWindow()
+  popupWindow.on('closed', () => { popupWindow = null })
+  popupWindow.show()
+}
+
+function notifyIfUnseen(msg: Message) {
+  if (registerUnseen(msg)) showMessagePopup()
 }
 
 app.whenReady().then(async () => {
+  // Single-instance lock: a second launch should surface the existing widget,
+  // not spawn a duplicate tray / timers / realtime channel / SQLite handle.
+  if (!app.requestSingleInstanceLock()) {
+    app.quit()
+    return
+  }
+  app.on('second-instance', () => {
+    if (feedWindow && !feedWindow.isDestroyed()) feedWindow.show()
+  })
+
   try {
     app.dock?.hide()
 
@@ -288,8 +321,9 @@ async function checkAndShowPopup() {
 
   if (unseenIds.length > 0) {
     unreadCount = unseenIds.length
-    setBadge(tray!, unreadCount)
-    createPopupWindow().show()
+    if (tray) setBadge(tray, unreadCount)
+    unseenIds.forEach(id => notifiedIds.add(id))
+    showMessagePopup()
   }
 }
 
@@ -403,7 +437,7 @@ ipcMain.handle('messages:markSeen', (_event, id: string) => {
       .from('message_reads')
       .upsert(
         { message_id: id, employee_id: currentEmployee.id },
-        { onConflict: 'message_id,employee_id' }
+        { onConflict: 'message_id,employee_id', ignoreDuplicates: true }
       )
       .then(({ error }) => {
         if (error) console.error('[markSeen] read receipt error:', error.message)

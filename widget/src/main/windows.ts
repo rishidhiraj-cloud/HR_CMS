@@ -5,19 +5,20 @@ const POPUP_WIDTH = 494
 const POPUP_HEIGHT = 520
 const FEED_WIDTH = 390
 const FEED_HEIGHT = 546
+const EDGE_MARGIN = 12  // gap from the screen edges (shared so windows line up)
 
 function getRendererPath(name: string): string {
   return path.join(__dirname, `../../dist/renderer/${name}/index.html`)
 }
 
 export function createPopupWindow(): BrowserWindow {
-  const { width, height } = screen.getPrimaryDisplay().workAreaSize
+  const { workArea } = screen.getPrimaryDisplay()
 
   const win = new BrowserWindow({
     width: POPUP_WIDTH,
     height: POPUP_HEIGHT,
-    x: width - POPUP_WIDTH - 20,
-    y: height - POPUP_HEIGHT - 20,
+    x: workArea.x + workArea.width - POPUP_WIDTH - EDGE_MARGIN,
+    y: workArea.y + workArea.height - POPUP_HEIGHT - EDGE_MARGIN,
     frame: false,
     alwaysOnTop: true,
     resizable: false,
@@ -34,13 +35,13 @@ export function createPopupWindow(): BrowserWindow {
 }
 
 export function createPollPopupWindow(): BrowserWindow {
-  const { width, height } = screen.getPrimaryDisplay().workAreaSize
+  const { workArea } = screen.getPrimaryDisplay()
 
   const win = new BrowserWindow({
     width: POPUP_WIDTH,
     height: 180,
-    x: width - POPUP_WIDTH - 20,
-    y: height - 180 - 20,
+    x: workArea.x + workArea.width - POPUP_WIDTH - EDGE_MARGIN,
+    y: workArea.y + workArea.height - 180 - EDGE_MARGIN,
     frame: false,
     alwaysOnTop: true,
     resizable: false,
@@ -56,13 +57,14 @@ export function createPollPopupWindow(): BrowserWindow {
   return win
 }
 
-export function createFeedWindow(trayBounds: Electron.Rectangle): BrowserWindow {
-  const { width: screenWidth } = screen.getPrimaryDisplay().workAreaSize
+export function createFeedWindow(_trayBounds: Electron.Rectangle): BrowserWindow {
+  const { workArea } = screen.getPrimaryDisplay()
 
-  // Position below the tray icon, clamped to screen
-  const rawX = Math.round(trayBounds.x + trayBounds.width / 2 - FEED_WIDTH / 2)
-  const x = Math.max(8, Math.min(rawX, screenWidth - FEED_WIDTH - 8))
-  const y = trayBounds.y + trayBounds.height + 4
+  // Anchor to the bottom-right corner, just above the taskbar. Tray-relative
+  // positioning is unreliable on Windows when the icon sits in the hidden-icons
+  // overflow flyout (getBounds() returns the flyout/origin), so we pin the corner.
+  const x = workArea.x + workArea.width - FEED_WIDTH - EDGE_MARGIN
+  const y = workArea.y + workArea.height - FEED_HEIGHT - EDGE_MARGIN
 
   const win = new BrowserWindow({
     width: FEED_WIDTH,
