@@ -21,8 +21,8 @@ function renderMarkdown(md: string): string {
 
   function inline(s: string): string {
     return s
-      .replace(/\*\*(.+?)\*\*/g, '<strong style="font-weight:600;color:#e2e8f0">$1</strong>')
-      .replace(/\*([^*\n]+?)\*/g, '<em style="font-style:italic;color:#cbd5e1">$1</em>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong style="font-weight:600;color:#ffffff">$1</strong>')
+      .replace(/\*([^*\n]+?)\*/g, '<em style="font-style:italic;color:rgba(255,255,255,0.85)">$1</em>')
   }
 
   function closeList() {
@@ -43,7 +43,7 @@ function renderMarkdown(md: string): string {
     if (ulMatch) {
       if (inOl) { out.push('</ol>'); inOl = false }
       if (!inUl) { out.push('<ul style="margin:4px 0;padding-left:18px;list-style:disc">'); inUl = true }
-      out.push(`<li style="margin:3px 0;color:#c0c0d8;font-size:12px;line-height:1.55">${inline(ulMatch[1])}</li>`)
+      out.push(`<li style="margin:3px 0;color:rgba(255,255,255,0.82);font-size:12px;line-height:1.55">${inline(ulMatch[1])}</li>`)
       continue
     }
 
@@ -51,12 +51,12 @@ function renderMarkdown(md: string): string {
     if (olMatch) {
       if (inUl) { out.push('</ul>'); inUl = false }
       if (!inOl) { out.push('<ol style="margin:4px 0;padding-left:18px">'); inOl = true }
-      out.push(`<li style="margin:3px 0;color:#c0c0d8;font-size:12px;line-height:1.55">${inline(olMatch[2])}</li>`)
+      out.push(`<li style="margin:3px 0;color:rgba(255,255,255,0.82);font-size:12px;line-height:1.55">${inline(olMatch[2])}</li>`)
       continue
     }
 
     closeList()
-    out.push(`<p style="margin:0 0 5px;color:#c0c0d8;font-size:12px;line-height:1.6">${inline(line)}</p>`)
+    out.push(`<p style="margin:0 0 5px;color:rgba(255,255,255,0.82);font-size:12px;line-height:1.6">${inline(line)}</p>`)
   }
 
   closeList()
@@ -328,7 +328,7 @@ export default function Feed() {
   if (employee === undefined) {
     return (
       <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', background: BG }}>
-        <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: 12 }}>Loading…</span>
+        <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: 12 }}>Loading…</span>
       </div>
     )
   }
@@ -346,7 +346,7 @@ export default function Feed() {
         <BubbleBackground mouseRef={loginMouseRef} />
         <div style={{ ...HEADER_STYLE, position: 'relative', zIndex: 1 }}>
           <div style={{ width: 30, height: 30, borderRadius: 8, background: 'linear-gradient(135deg,#0d9488,#0f766e)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: 'white', flexShrink: 0, letterSpacing: '0.2px' }}>MC</div>
-          <span style={{ fontWeight: 700, fontSize: 13, color: '#f1f5f9' }}>M-Connect</span>
+          <span style={{ fontWeight: 700, fontSize: 13, color: '#ffffff' }}>M-Connect</span>
         </div>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 24px', position: 'relative', zIndex: 1 }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 18 }}>
@@ -354,7 +354,7 @@ export default function Feed() {
               <img src={modicareLogoUrl} alt="Modicare" style={{ height: 38, display: 'block' }} />
             </div>
           </div>
-          <p style={{ color: 'rgba(255,255,255,0.50)', fontSize: 12, textAlign: 'center', marginBottom: 22 }}>
+          <p style={{ color: 'rgba(255,255,255,0.72)', fontSize: 12, textAlign: 'center', marginBottom: 22 }}>
             Sign in with your employee account
           </p>
           <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -407,10 +407,10 @@ export default function Feed() {
       <div style={HEADER_STYLE}>
         <div style={{ width: 30, height: 30, borderRadius: 8, background: 'linear-gradient(135deg,#0d9488,#0f766e)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: 'white', flexShrink: 0, letterSpacing: '0.2px' }}>MC</div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.40)', fontWeight: 600, letterSpacing: '0.6px', textTransform: 'uppercase', lineHeight: 1 }}>M-Connect</div>
-          <div style={{ fontWeight: 600, fontSize: 12, color: '#f1f5f9', marginTop: 1 }}>Hi, {employee.name.split(' ')[0]} 👋</div>
+          <div style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.55)', fontWeight: 600, letterSpacing: '0.6px', textTransform: 'uppercase', lineHeight: 1 }}>M-Connect</div>
+          <div style={{ fontWeight: 600, fontSize: 12, color: '#ffffff', marginTop: 1 }}>Hi, {employee.name.split(' ')[0]} 👋</div>
         </div>
-        <button onClick={handleLogout} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.35)', cursor: 'pointer', fontSize: 11, padding: 0, WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+        <button onClick={handleLogout} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.55)', cursor: 'pointer', fontSize: 11, padding: 0, WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
           Sign out
         </button>
       </div>
@@ -431,7 +431,7 @@ export default function Feed() {
               background: 'none',
               border: 'none',
               borderBottom: activeTab === tab.id ? '2px solid #0d9488' : '2px solid transparent',
-              color: activeTab === tab.id ? '#5eead4' : 'rgba(255,255,255,0.40)',
+              color: activeTab === tab.id ? '#5eead4' : 'rgba(255,255,255,0.60)',
               fontSize: 9,
               letterSpacing: '0.04em',
               cursor: 'pointer',
@@ -465,7 +465,7 @@ export default function Feed() {
                   <button key={t.label} onClick={t.onClick} style={{
                     background: t.active ? 'rgba(13,148,136,0.20)' : 'none',
                     border: t.active ? '1px solid rgba(13,148,136,0.35)' : '1px solid transparent',
-                    color: t.active ? '#5eead4' : 'rgba(255,255,255,0.40)',
+                    color: t.active ? '#5eead4' : 'rgba(255,255,255,0.60)',
                     fontSize: 11, cursor: 'pointer', padding: '2px 10px', borderRadius: 6,
                   }}>{t.label}</button>
                 ))}
@@ -484,20 +484,20 @@ export default function Feed() {
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
                     {isUnseen && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#0d9488', flexShrink: 0 }} />}
-                    <div style={{ fontWeight: isUnseen ? 700 : 600, fontSize: 12, color: '#f1f5f9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{msg.title}</div>
+                    <div style={{ fontWeight: isUnseen ? 700 : 600, fontSize: 12, color: '#ffffff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{msg.title}</div>
                   </div>
-                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginBottom: 4, paddingLeft: isUnseen ? 12 : 0 }}>
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.60)', marginBottom: 4, paddingLeft: isUnseen ? 12 : 0 }}>
                     {new Date(msg.published_at!).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                     {' · '}{msg.target_type === 'all' ? 'All Employees' : msg.target_value}
                   </div>
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const, paddingLeft: isUnseen ? 12 : 0 }}>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.70)', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const, paddingLeft: isUnseen ? 12 : 0 }}>
                     {msg.content_html.replace(/<[^>]+>/g, '')}
                   </div>
                 </div>
               )
             })}
             {displayedMessages.length === 0 && (
-              <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.25)', fontSize: 12, padding: '40px 0' }}>
+              <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.50)', fontSize: 12, padding: '40px 0' }}>
                 {showUnreadOnly ? 'No unread messages' : 'No announcements yet'}
               </p>
             )}
@@ -509,13 +509,13 @@ export default function Feed() {
       {activeTab === 'documents' && (
         <div style={{ flex: 1, overflow: 'auto' }}>
           {docsLoading && (
-            <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.25)', fontSize: 12, padding: '40px 0' }}>Loading…</p>
+            <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.50)', fontSize: 12, padding: '40px 0' }}>Loading…</p>
           )}
           {!docsLoading && documents.length === 0 && (
             <div style={{ textAlign: 'center', padding: '40px 14px' }}>
               <p style={{ fontSize: 28, marginBottom: 8 }}>📂</p>
-              <p style={{ color: 'rgba(255,255,255,0.50)', fontSize: 12, fontWeight: 600 }}>No documents available</p>
-              <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: 11, marginTop: 4 }}>HR will upload documents here for your reference.</p>
+              <p style={{ color: 'rgba(255,255,255,0.80)', fontSize: 12, fontWeight: 600 }}>No documents available</p>
+              <p style={{ color: 'rgba(255,255,255,0.50)', fontSize: 11, marginTop: 4 }}>HR will upload documents here for your reference.</p>
             </div>
           )}
           {documents.map(doc => (
@@ -530,10 +530,10 @@ export default function Feed() {
                 {doc.file_type === 'pdf' ? '📕' : doc.file_type === 'docx' ? '📘' : '📄'}
               </span>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: '#f1f5f9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#ffffff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {doc.name}
                 </div>
-                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginTop: 2, display: 'flex', gap: 6, alignItems: 'center' }}>
+                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.60)', marginTop: 2, display: 'flex', gap: 6, alignItems: 'center' }}>
                   <span style={{ textTransform: 'uppercase' }}>{doc.file_type}</span>
                   {doc.target_level && (
                     <span style={{ background: 'rgba(99,102,241,0.20)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.30)', borderRadius: 4, padding: '1px 6px', fontSize: 9, fontWeight: 600 }}>
@@ -554,13 +554,13 @@ export default function Feed() {
       {activeTab === 'polls' && (
         <div style={{ flex: 1, overflow: 'auto', padding: '10px 12px' }}>
           {pollsLoading && (
-            <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.25)', fontSize: 12, padding: '40px 0' }}>Loading…</p>
+            <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.50)', fontSize: 12, padding: '40px 0' }}>Loading…</p>
           )}
           {!pollsLoading && polls.length === 0 && (
             <div style={{ textAlign: 'center', padding: '40px 14px' }}>
               <p style={{ fontSize: 28, marginBottom: 8 }}>📊</p>
-              <p style={{ color: 'rgba(255,255,255,0.50)', fontSize: 12, fontWeight: 600 }}>No active polls</p>
-              <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: 11, marginTop: 4 }}>HR will post polls here for your feedback.</p>
+              <p style={{ color: 'rgba(255,255,255,0.80)', fontSize: 12, fontWeight: 600 }}>No active polls</p>
+              <p style={{ color: 'rgba(255,255,255,0.50)', fontSize: 11, marginTop: 4 }}>HR will post polls here for your feedback.</p>
             </div>
           )}
           {polls.map(poll => {
@@ -568,7 +568,7 @@ export default function Feed() {
             const maxVotes = Math.max(...poll.voteCounts, 1)
             return (
               <div key={poll.id} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 12, padding: '12px 14px', marginBottom: 10 }}>
-                <p style={{ fontSize: 12, fontWeight: 600, color: '#f1f5f9', marginBottom: 10, lineHeight: 1.4 }}>{poll.question}</p>
+                <p style={{ fontSize: 12, fontWeight: 600, color: '#ffffff', marginBottom: 10, lineHeight: 1.4 }}>{poll.question}</p>
                 {!poll.hasVoted ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {poll.options.map((opt, i) => (
@@ -581,7 +581,7 @@ export default function Feed() {
                           border: '1px solid rgba(255,255,255,0.14)',
                           borderRadius: 8,
                           padding: '7px 12px',
-                          color: '#e2e8f0',
+                          color: '#ffffff',
                           fontSize: 11,
                           cursor: isVoting ? 'not-allowed' : 'pointer',
                           textAlign: 'left',
@@ -606,10 +606,10 @@ export default function Feed() {
                       return (
                         <div key={i}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, marginBottom: 3 }}>
-                            <span style={{ color: isMyVote ? '#5eead4' : 'rgba(255,255,255,0.60)', fontWeight: isMyVote ? 600 : 400 }}>
+                            <span style={{ color: isMyVote ? '#5eead4' : 'rgba(255,255,255,0.80)', fontWeight: isMyVote ? 600 : 400 }}>
                               {isMyVote ? '✓ ' : ''}{opt}
                             </span>
-                            <span style={{ color: 'rgba(255,255,255,0.40)' }}>{count} ({pct}%)</span>
+                            <span style={{ color: 'rgba(255,255,255,0.65)' }}>{count} ({pct}%)</span>
                           </div>
                           <div style={{ height: 5, borderRadius: 3, overflow: 'hidden', background: 'rgba(255,255,255,0.08)' }}>
                             <div style={{ height: '100%', borderRadius: 3, width: `${barWidth}%`, background: isMyVote ? 'linear-gradient(90deg,#0d9488,#0891b2)' : 'rgba(255,255,255,0.20)', transition: 'width 0.4s ease' }} />
@@ -617,7 +617,7 @@ export default function Feed() {
                         </div>
                       )
                     })}
-                    <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.30)', marginTop: 2 }}>{poll.totalVotes} vote{poll.totalVotes !== 1 ? 's' : ''} total</p>
+                    <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>{poll.totalVotes} vote{poll.totalVotes !== 1 ? 's' : ''} total</p>
                   </div>
                 )}
               </div>
@@ -633,8 +633,8 @@ export default function Feed() {
             {qaHistory.length === 0 && !asking && (
               <div style={{ textAlign: 'center', padding: '30px 0' }}>
                 <p style={{ fontSize: 28, marginBottom: 8 }}>🤖</p>
-                <p style={{ color: 'rgba(255,255,255,0.60)', fontSize: 12, fontWeight: 600 }}>Ask about company policies</p>
-                <p style={{ color: 'rgba(255,255,255,0.30)', fontSize: 11, marginTop: 4 }}>
+                <p style={{ color: 'rgba(255,255,255,0.80)', fontSize: 12, fontWeight: 600 }}>Ask about company policies</p>
+                <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 11, marginTop: 4 }}>
                   Ask about leave, payroll, benefits, conduct, and more.
                 </p>
               </div>
@@ -655,7 +655,7 @@ export default function Feed() {
                     <>
                       <div dangerouslySetInnerHTML={{ __html: qa.answerHtml }} />
                       {qa.sources.length > 0 && (
-                        <p style={{ margin: '8px 0 0', color: 'rgba(255,255,255,0.30)', fontSize: 10, borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 6 }}>
+                        <p style={{ margin: '8px 0 0', color: 'rgba(255,255,255,0.55)', fontSize: 10, borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 6 }}>
                           📄 {qa.sources.join(', ')}
                         </p>
                       )}
@@ -704,7 +704,7 @@ const S = {
     border: '1px solid rgba(255,255,255,0.14)',
     borderRadius: 8,
     padding: '8px 10px',
-    color: '#f1f5f9',
+    color: '#ffffff',
     fontSize: 13,
     outline: 'none',
     width: '100%',

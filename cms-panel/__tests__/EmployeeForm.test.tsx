@@ -4,7 +4,7 @@ import EmployeeForm from '@/components/EmployeeForm'
 
 describe('EmployeeForm', () => {
   it('renders all fields', () => {
-    render(<EmployeeForm onSuccess={jest.fn()} />)
+    render(<EmployeeForm departments={[]} levels={[]} onSuccess={jest.fn()} />)
     expect(screen.getByPlaceholderText('Full name')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('work@company.com')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('Mobile number')).toBeInTheDocument()
@@ -14,7 +14,7 @@ describe('EmployeeForm', () => {
   })
 
   it('shows error if name is empty on submit', async () => {
-    render(<EmployeeForm onSuccess={jest.fn()} />)
+    render(<EmployeeForm departments={[]} levels={[]} onSuccess={jest.fn()} />)
     await userEvent.click(screen.getByText('Save'))
     expect(await screen.findByText('Name is required')).toBeInTheDocument()
   })

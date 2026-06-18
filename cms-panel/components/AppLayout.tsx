@@ -5,8 +5,18 @@ import LogoutButton from './LogoutButton'
 
 const navItems = [
   {
-    label: 'Announcements',
+    label: 'Home',
     href: '/dashboard',
+    exact: true,
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Announcements',
+    href: '/messages',
     icon: (
       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
@@ -111,9 +121,9 @@ export default function AppLayout({ children, title, action, userName }: Props) 
         {/* Nav */}
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
           {navItems.map(item => {
-            const active =
-              pathname === item.href ||
-              (item.href !== '/dashboard' && pathname.startsWith(item.href))
+            const active = 'exact' in item && item.exact
+              ? pathname === item.href
+              : pathname === item.href || pathname.startsWith(item.href + '/')
             return (
               <Link
                 key={item.href}
