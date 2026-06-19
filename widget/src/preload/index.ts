@@ -47,4 +47,17 @@ contextBridge.exposeInMainWorld('hrWidget', {
     ipcRenderer.on('poll:new', () => cb())
     return () => ipcRenderer.removeAllListeners('poll:new')
   },
+  onRequestPasscode: (cb: (action: 'quit') => void) => {
+    ipcRenderer.on('app:requestPasscode', (_event, action) => cb(action))
+    return () => ipcRenderer.removeAllListeners('app:requestPasscode')
+  },
+  quitApp: () => ipcRenderer.invoke('app:quit'),
+  minimizeWidget: () => ipcRenderer.invoke('widget:minimize'),
+  setExpanded: (expanded: boolean) => ipcRenderer.invoke('widget:setExpanded', expanded),
+  onUpdateReady: (cb: () => void) => {
+    ipcRenderer.on('app:updateReady', () => cb())
+    return () => ipcRenderer.removeAllListeners('app:updateReady')
+  },
+  isUpdateReady: () => ipcRenderer.invoke('app:isUpdateReady'),
+  openReleasePage: () => ipcRenderer.invoke('app:openReleasePage'),
 })

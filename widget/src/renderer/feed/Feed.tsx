@@ -2,6 +2,10 @@ import React, { useEffect, useState, useRef } from 'react'
 import type { Employee, Message, HrDocument, Poll } from '../../shared/types'
 // @ts-ignore
 import modicareLogoUrl from '../assets/MCLogo.png'
+// @ts-ignore
+import kiteLogoUrl from '../assets/icon.png'
+
+const APP_VERSION = '1.0.10'
 
 type ActiveTab = 'announcements' | 'documents' | 'polls' | 'ai-search'
 
@@ -153,12 +157,15 @@ export default function Feed() {
   const [unseenIds, setUnseenIds] = useState<Set<string>>(new Set())
   const [showUnreadOnly, setShowUnreadOnly] = useState(false)
   const [selected, setSelected] = useState<Message | null>(null)
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
   const [loginError, setLoginError] = useState('')
-  const [loggingIn, setLoggingIn] = useState(false)
   const [msLoggingIn, setMsLoggingIn] = useState(false)
   const [activeTab, setActiveTab] = useState<ActiveTab>('announcements')
+  const [isExpanded, setIsExpanded] = useState(false)
+  const [passcodeFor, setPasscodeFor] = useState<'logout' | 'quit' | null>(null)
+  const [passcodeInput, setPasscodeInput] = useState('')
+  const [passcodeError, setPasscodeError] = useState(false)
+  const [passcodeShake, setPasscodeShake] = useState(false)
+  const [updateReady, setUpdateReady] = useState(false)
 
   const [question, setQuestion] = useState('')
   const [asking, setAsking] = useState(false)
@@ -178,6 +185,9 @@ export default function Feed() {
 
   useEffect(() => {
     window.hrWidget.getEmployee().then(emp => setEmployee(emp ?? null))
+    window.hrWidget.isUpdateReady().then(ready => { if (ready) setUpdateReady(true) })
+    const unsubUpdate = window.hrWidget.onUpdateReady(() => setUpdateReady(true))
+    return unsubUpdate
   }, [])
 
   useEffect(() => {
@@ -214,13 +224,16 @@ export default function Feed() {
     const unsubShowPolls = window.hrWidget.onShowPolls(() => {
       handleTabChange('polls')
     })
+    const unsubPasscode = window.hrWidget.onRequestPasscode((action) => {
+      openPasscode(action)
+    })
 
     // Show badge dot if there are already unvoted polls (catches startup case where
     // feedWindow was null when checkForNewPolls ran in the main process)
     window.hrWidget.getPolls().then(polls => {
       if (polls.some(p => !p.hasVoted)) setNewPollAlert(true)
     })
-    return () => { unsubMsg(); unsubUnread(); unsubMarked(); unsubDisabled(); unsubPoll(); unsubShowPolls() }
+    return () => { unsubMsg(); unsubUnread(); unsubMarked(); unsubDisabled(); unsubPoll(); unsubShowPolls(); unsubPasscode() }
   }, [employee])
 
   useEffect(() => {
@@ -267,21 +280,6 @@ export default function Feed() {
     setVotingId(null)
   }
 
-  async function handleLogin(e: React.FormEvent) {
-    e.preventDefault()
-    setLoginError('')
-    setLoggingIn(true)
-    const result = await window.hrWidget.login(email, password)
-    if (result?.error) {
-      setLoginError(result.error)
-      setLoggingIn(false)
-    } else {
-      const emp = await window.hrWidget.getEmployee()
-      setEmployee(emp ?? null)
-      setLoggingIn(false)
-    }
-  }
-
   async function handleMicrosoftLogin() {
     setLoginError('')
     setMsLoggingIn(true)
@@ -307,6 +305,27 @@ export default function Feed() {
     setDocuments([])
     setDocsLoaded(false)
     setActiveTab('announcements')
+  }
+
+  function openPasscode(action: 'logout' | 'quit') {
+    setPasscodeInput('')
+    setPasscodeError(false)
+    setPasscodeShake(false)
+    setPasscodeFor(action)
+  }
+
+  function submitPasscode() {
+    if (passcodeInput === '7486') {
+      const action = passcodeFor
+      setPasscodeFor(null)
+      if (action === 'logout') handleLogout()
+      else window.hrWidget.quitApp()
+    } else {
+      setPasscodeError(true)
+      setPasscodeInput('')
+      setPasscodeShake(true)
+      setTimeout(() => setPasscodeShake(false), 500)
+    }
   }
 
   function handleMarkSeen(id: string) {
@@ -359,30 +378,49 @@ export default function Feed() {
         }}
       >
         <BubbleBackground mouseRef={loginMouseRef} />
-        <div style={{ ...HEADER_STYLE, position: 'relative', zIndex: 1 }}>
-          <div style={{ width: 30, height: 30, borderRadius: 8, background: 'linear-gradient(135deg,#0d9488,#0f766e)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: 'white', flexShrink: 0, letterSpacing: '0.2px' }}>MC</div>
-          <span style={{ fontWeight: 700, fontSize: 13, color: '#ffffff' }}>M-Connect</span>
-        </div>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 24px', position: 'relative', zIndex: 1 }}>
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 18 }}>
-            <div style={{ background: 'rgba(255,255,255,0.93)', borderRadius: 14, padding: '12px 22px', backdropFilter: 'blur(16px)', boxShadow: '0 4px 28px rgba(0,0,0,0.30), 0 1px 6px rgba(0,0,0,0.15)' }}>
-              <img src={modicareLogoUrl} alt="Modicare" style={{ height: 38, display: 'block' }} />
-            </div>
-          </div>
-          <p style={{ color: 'rgba(255,255,255,0.72)', fontSize: 12, textAlign: 'center', marginBottom: 18 }}>
-            Sign in with your employee account
-          </p>
+
+        {/* Drag region */}
+        <div style={{ height: 28, WebkitAppRegion: 'drag', flexShrink: 0, position: 'relative', zIndex: 1 } as React.CSSProperties} />
+
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 28px 24px', position: 'relative', zIndex: 1, gap: 0 }}>
+
+          {/* Kite logo */}
+          <img
+            src={kiteLogoUrl}
+            alt="M-Connect"
+            style={{ width: 88, height: 88, objectFit: 'contain', marginBottom: 16, filter: 'drop-shadow(0 8px 24px rgba(0,120,210,0.35))' }}
+          />
+
+          {/* App name */}
+          <p style={{ color: '#ffffff', fontWeight: 700, fontSize: 20, margin: '0 0 3px', letterSpacing: '-0.4px' }}>M-Connect</p>
+          <p style={{ color: 'rgba(255,255,255,0.40)', fontSize: 10, margin: '0 0 30px', letterSpacing: '1.2px', textTransform: 'uppercase' }}>Modicare Employee Hub</p>
+
+          {/* Welcome text */}
+          <p style={{ color: 'rgba(255,255,255,0.88)', fontSize: 13, fontWeight: 600, margin: '0 0 6px', textAlign: 'center' }}>Welcome back</p>
+          <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11, margin: '0 0 22px', textAlign: 'center', lineHeight: 1.55 }}>Sign in with your Modicare corporate account</p>
 
           {/* Microsoft SSO button */}
           <button
             onClick={handleMicrosoftLogin}
-            disabled={msLoggingIn || loggingIn}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, width: '100%', padding: '9px 14px', background: '#ffffff', border: 'none', borderRadius: 8, cursor: msLoggingIn ? 'wait' : 'pointer', fontSize: 13, fontWeight: 600, color: '#1a1a1a', boxShadow: '0 2px 8px rgba(0,0,0,0.25)', opacity: msLoggingIn || loggingIn ? 0.75 : 1, marginBottom: 14 }}
+            disabled={msLoggingIn}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12,
+              width: '100%', padding: '11px 20px',
+              background: msLoggingIn ? 'rgba(255,255,255,0.90)' : '#ffffff',
+              border: 'none', borderRadius: 12,
+              cursor: msLoggingIn ? 'wait' : 'pointer',
+              fontSize: 13, fontWeight: 600, color: '#1a1a1a',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.22), 0 1px 4px rgba(0,0,0,0.10)',
+              transition: 'opacity 0.15s, transform 0.1s',
+              opacity: msLoggingIn ? 0.80 : 1,
+            }}
+            onMouseEnter={e => { if (!msLoggingIn) (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(0)' }}
           >
             {msLoggingIn ? (
-              <span style={{ width: 16, height: 16, border: '2px solid #ccc', borderTopColor: '#0078d4', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
+              <span style={{ width: 18, height: 18, border: '2.5px solid #ddd', borderTopColor: '#0078d4', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite', flexShrink: 0 }} />
             ) : (
-              <svg width="16" height="16" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <svg width="18" height="18" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
                 <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
                 <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
                 <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
@@ -392,21 +430,16 @@ export default function Feed() {
             {msLoggingIn ? 'Signing in…' : 'Sign in with Microsoft'}
           </button>
 
-          {/* Divider */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-            <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.18)' }} />
-            <span style={{ color: 'rgba(255,255,255,0.40)', fontSize: 10 }}>or</span>
-            <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.18)' }} />
-          </div>
+          {loginError && (
+            <div style={{ marginTop: 14, background: 'rgba(239,68,68,0.14)', border: '1px solid rgba(239,68,68,0.28)', borderRadius: 10, padding: '8px 14px', width: '100%' }}>
+              <p style={{ color: '#fca5a5', fontSize: 11, margin: 0, textAlign: 'center' }}>{loginError}</p>
+            </div>
+          )}
+        </div>
 
-          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required style={S.input} />
-            <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required style={S.input} />
-            {loginError && <p style={{ color: '#f87171', fontSize: 11, margin: 0 }}>{loginError}</p>}
-            <button type="submit" disabled={loggingIn || msLoggingIn} style={{ ...S.primaryBtn, opacity: loggingIn ? 0.7 : 1, marginTop: 4 }}>
-              {loggingIn ? 'Signing in…' : 'Sign In'}
-            </button>
-          </form>
+        {/* Footer */}
+        <div style={{ textAlign: 'center', paddingBottom: 16, position: 'relative', zIndex: 1 }}>
+          <p style={{ color: 'rgba(255,255,255,0.20)', fontSize: 10, margin: 0, letterSpacing: '0.3px' }}>Secured by Microsoft Identity</p>
         </div>
       </div>
     )
@@ -443,7 +476,7 @@ export default function Feed() {
     : messages
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: BG }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: BG, position: 'relative' }}>
 
       {/* Header */}
       <div style={HEADER_STYLE}>
@@ -452,9 +485,65 @@ export default function Feed() {
           <div style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.55)', fontWeight: 600, letterSpacing: '0.6px', textTransform: 'uppercase', lineHeight: 1 }}>M-Connect</div>
           <div style={{ fontWeight: 600, fontSize: 12, color: '#ffffff', marginTop: 1 }}>Hi, {employee.name.split(' ')[0]} 👋</div>
         </div>
-        <button onClick={handleLogout} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.55)', cursor: 'pointer', fontSize: 11, padding: 0, WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
-          Sign out
-        </button>
+        {/* Window controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 2, WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+          {/* Expand / Collapse */}
+          <button
+            title={isExpanded ? 'Collapse' : 'Expand'}
+            onClick={() => {
+              const next = !isExpanded
+              setIsExpanded(next)
+              window.hrWidget.setExpanded(next)
+            }}
+            style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.50)', cursor: 'pointer', padding: '4px 5px', borderRadius: 5, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'color 0.15s' }}
+            onMouseEnter={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.90)')}
+            onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.50)')}
+          >
+            {isExpanded ? (
+              /* Collapse: inward arrows */
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="8,1 12,1 12,5"/>
+                <polyline points="5,12 1,12 1,8"/>
+                <line x1="12" y1="1" x2="7.5" y2="5.5"/>
+                <line x1="1" y1="12" x2="5.5" y2="7.5"/>
+              </svg>
+            ) : (
+              /* Expand: outward arrows */
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="8,1 12,1 12,5"/>
+                <polyline points="5,12 1,12 1,8"/>
+                <line x1="7" y1="7" x2="12" y2="1"/>
+                <line x1="1" y1="12" x2="6" y2="6"/>
+              </svg>
+            )}
+          </button>
+
+          {/* Minimize */}
+          <button
+            title="Minimise"
+            onClick={() => window.hrWidget.minimizeWidget()}
+            style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.50)', cursor: 'pointer', padding: '4px 5px', borderRadius: 5, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'color 0.15s' }}
+            onMouseEnter={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.90)')}
+            onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.50)')}
+          >
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+              <line x1="2" y1="10" x2="11" y2="10"/>
+            </svg>
+          </button>
+
+          <div style={{ width: 1, height: 12, background: 'rgba(255,255,255,0.12)', margin: '0 3px' }} />
+
+          <span style={{ color: 'rgba(255,255,255,0.22)', fontSize: 9, letterSpacing: '0.2px', userSelect: 'none' }}>v{APP_VERSION}</span>
+
+          <div style={{ width: 1, height: 12, background: 'rgba(255,255,255,0.12)', margin: '0 3px' }} />
+
+          <button onClick={() => openPasscode('logout')} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.50)', cursor: 'pointer', fontSize: 11, padding: '4px 2px', transition: 'color 0.15s' } as React.CSSProperties}
+            onMouseEnter={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.90)')}
+            onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.50)')}
+          >
+            Sign out
+          </button>
+        </div>
       </div>
 
       {/* Tab bar */}
@@ -735,7 +824,75 @@ export default function Feed() {
         </div>
       )}
 
-      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+      {/* Update banner */}
+      {updateReady && (
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(135deg,#0d9488,#0891b2)', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, zIndex: 50 }}>
+          <span style={{ fontSize: 16 }}>🔄</span>
+          <span style={{ flex: 1, color: '#ffffff', fontSize: 11, fontWeight: 600, lineHeight: 1.4 }}>A new version is available!</span>
+          <button
+            onClick={() => window.hrWidget.openReleasePage()}
+            style={{ background: 'rgba(255,255,255,0.20)', border: '1px solid rgba(255,255,255,0.35)', color: '#ffffff', borderRadius: 7, padding: '5px 12px', fontSize: 11, fontWeight: 700, cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' }}
+          >
+            Download
+          </button>
+        </div>
+      )}
+
+      {/* Passcode modal */}
+      {passcodeFor && (
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.70)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div
+            style={{ background: 'linear-gradient(135deg,#0b2030,#0d2840)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 16, padding: '28px 24px', width: 260, boxShadow: '0 20px 60px rgba(0,0,0,0.50)', animation: passcodeShake ? 'shake 0.45s ease' : 'none' }}
+          >
+            <div style={{ textAlign: 'center', marginBottom: 20 }}>
+              <div style={{ fontSize: 28, marginBottom: 8 }}>🔒</div>
+              <p style={{ color: '#ffffff', fontWeight: 700, fontSize: 13, margin: 0 }}>Admin Passcode Required</p>
+              <p style={{ color: 'rgba(255,255,255,0.50)', fontSize: 11, marginTop: 4 }}>
+                {passcodeFor === 'logout' ? 'Enter passcode to sign out' : 'Enter passcode to quit'}
+              </p>
+            </div>
+            <input
+              type="password"
+              inputMode="numeric"
+              maxLength={6}
+              autoFocus
+              value={passcodeInput}
+              onChange={e => { setPasscodeInput(e.target.value); setPasscodeError(false) }}
+              onKeyDown={e => { if (e.key === 'Enter') submitPasscode() }}
+              placeholder="••••"
+              style={{ ...S.input, textAlign: 'center', letterSpacing: 6, fontSize: 18, marginBottom: 6, border: passcodeError ? '1px solid rgba(239,68,68,0.60)' : '1px solid rgba(255,255,255,0.14)' }}
+            />
+            {passcodeError && (
+              <p style={{ color: '#f87171', fontSize: 11, textAlign: 'center', margin: '0 0 8px' }}>Incorrect passcode</p>
+            )}
+            <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+              <button
+                onClick={() => setPasscodeFor(null)}
+                style={{ flex: 1, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.70)', borderRadius: 8, padding: '8px 0', fontSize: 12, cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitPasscode}
+                style={{ flex: 1, background: 'linear-gradient(135deg,#0d9488,#0891b2)', border: 'none', color: '#ffffff', borderRadius: 8, padding: '8px 0', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg) } }
+        @keyframes shake {
+          0%,100% { transform: translateX(0) }
+          20%      { transform: translateX(-8px) }
+          40%      { transform: translateX(8px) }
+          60%      { transform: translateX(-6px) }
+          80%      { transform: translateX(6px) }
+        }
+      `}</style>
     </div>
   )
 }

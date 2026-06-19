@@ -1,7 +1,7 @@
 import { app, Tray, Menu, nativeImage } from 'electron'
 import path from 'path'
 
-export function createTray(onClick: () => void): Tray {
+export function createTray(onClick: () => void, onQuit: () => void): Tray {
   // trayIcon.png is placed directly in Resources/ via extraResources in electron-builder
   const iconPath = app.isPackaged
     ? path.join(process.resourcesPath, 'trayIcon.png')
@@ -24,7 +24,7 @@ export function createTray(onClick: () => void): Tray {
   const contextMenu = Menu.buildFromTemplate([
     { label: 'Open Announcements', click: onClick },
     { type: 'separator' },
-    { label: 'Quit', role: 'quit' },
+    { label: 'Quit', click: onQuit },
   ])
 
   // On macOS setContextMenu overrides click — handle each separately

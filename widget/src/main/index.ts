@@ -1,4 +1,4 @@
-import { app, ipcMain, shell, BrowserWindow } from 'electron'
+import { app, ipcMain, shell, BrowserWindow, screen, net } from 'electron'
 import path from 'path'
 import crypto from 'crypto'
 import { createClient, RealtimeChannel } from '@supabase/supabase-js'
@@ -22,6 +22,7 @@ let feedWindow: BrowserWindow | null = null
 let popupWindow: BrowserWindow | null = null
 let tray: ReturnType<typeof createTray> | null = null
 let currentEmployee: Employee | null = null
+let updateDownloaded = false
 let unreadCount = 0
 let realtimeChannel: RealtimeChannel | null = null
 let pollingTimer: ReturnType<typeof setInterval> | null = null
@@ -47,9 +48,12 @@ function stopPolling() {
 
 async function updatePresence() {
   if (!currentEmployee) return
-  await supabase
-    .from('employee_presence')
-    .upsert({ employee_id: currentEmployee.id, last_seen_at: new Date().toISOString() }, { onConflict: 'employee_id' })
+  try {
+    await fetch(`${CMS_BASE_URL}/api/employees/presence`, {
+      method: 'POST',
+      headers: await widgetAuthHeaders(),
+    })
+  } catch { /* ignore — presence is best-effort */ }
 }
 
 function startHeartbeat() {
@@ -109,13 +113,10 @@ function handleRealtimePoll(payload: { new: Record<string, unknown> }) {
 
 async function checkForNewPolls() {
   if (!currentEmployee) return
-  const { data: sessionData } = await supabase.auth.getSession()
-  const token = sessionData.session?.access_token
-  if (!token) return
 
   try {
     const res = await fetch(`${CMS_BASE_URL}/api/polls/active`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: await widgetAuthHeaders(),
     })
     console.log('[checkForNewPolls] api status:', res.status)
     if (!res.ok) {
@@ -226,6 +227,11 @@ function registerUnseen(msg: Message): boolean {
 
 // Show (or reuse) the single announcement popup. The popup renderer fetches the
 // current unseen set itself, so one window is enough — never one per message.
+function openFeedWindow(bounds: Electron.Rectangle): BrowserWindow {
+  const win = createFeedWindow(bounds)
+  return win
+}
+
 function showMessagePopup() {
   if (popupWindow && !popupWindow.isDestroyed()) {
     popupWindow.reload()  // refresh the unseen list shown in the existing popup
@@ -286,22 +292,42 @@ app.whenReady().then(async () => {
       }
     }
 
-    tray = createTray(() => {
-      if (!feedWindow || feedWindow.isDestroyed()) {
-        const bounds = tray!.getBounds()
-        feedWindow = createFeedWindow(bounds)
-        feedWindow.show()
-      } else if (feedWindow.isVisible()) {
-        feedWindow.hide()
-      } else {
-        feedWindow.show()
+    tray = createTray(
+      () => {
+        if (!feedWindow || feedWindow.isDestroyed()) {
+          const bounds = tray!.getBounds()
+          feedWindow = openFeedWindow(bounds)
+          feedWindow.show()
+        } else if (feedWindow.isVisible()) {
+          feedWindow.hide()
+        } else {
+          feedWindow.show()
+        }
+      },
+      () => {
+        // Quit clicked in tray — show feed window and ask for passcode
+        if (!feedWindow || feedWindow.isDestroyed()) {
+          const bounds = tray!.getBounds()
+          feedWindow = openFeedWindow(bounds)
+          feedWindow.once('ready-to-show', () => {
+            feedWindow?.show()
+            feedWindow?.webContents.send('app:requestPasscode', 'quit')
+          })
+          feedWindow.show()
+        } else {
+          feedWindow.show()
+          feedWindow.webContents.send('app:requestPasscode', 'quit')
+        }
       }
-    })
+    )
 
     if (currentEmployee) {
       await checkAndShowPopup()
       await checkForNewPolls()
     }
+
+    // Check for updates in the background (only in packaged app, not dev)
+    setTimeout(() => checkForNewVersion(), 5000)
   } catch (err) {
     console.error('[HR Widget] startup error:', err)
   }
@@ -334,6 +360,16 @@ function isTargetedAtEmployee(msg: Message, emp: Employee | null): boolean {
   if (msg.target_type === 'dept') return msg.target_value === emp.department
   if (msg.target_type === 'role') return msg.target_value === emp.role
   return false
+}
+
+// Returns auth headers for CMS API calls. Prefers Supabase Bearer token (for email/password
+// users with full RLS). Falls back to X-Employee-Id header for Microsoft-only sessions.
+async function widgetAuthHeaders(): Promise<Record<string, string>> {
+  const { data } = await supabase.auth.getSession()
+  const token = data.session?.access_token
+  if (token) return { Authorization: `Bearer ${token}` }
+  if (currentEmployee) return { 'X-Employee-Id': currentEmployee.id }
+  return {}
 }
 
 // IPC handlers
@@ -575,7 +611,7 @@ ipcMain.handle('messages:markSeen', (_event, id: string) => {
 ipcMain.handle('window:openFeed', async () => {
   if (!feedWindow || feedWindow.isDestroyed()) {
     const bounds = tray!.getBounds()
-    feedWindow = createFeedWindow(bounds)
+    feedWindow = openFeedWindow(bounds)
     feedWindow.once('ready-to-show', () => {
       feedWindow?.webContents.send('feed:showUnread')
     })
@@ -589,7 +625,7 @@ ipcMain.handle('window:openFeed', async () => {
 ipcMain.handle('window:openFeedToPolls', async () => {
   if (!feedWindow || feedWindow.isDestroyed()) {
     const bounds = tray!.getBounds()
-    feedWindow = createFeedWindow(bounds)
+    feedWindow = openFeedWindow(bounds)
     feedWindow.once('ready-to-show', () => {
       feedWindow?.webContents.send('feed:showPolls')
     })
@@ -603,17 +639,11 @@ ipcMain.handle('window:openFeedToPolls', async () => {
 const CMS_BASE_URL = 'https://hrcms-ten.vercel.app'
 
 ipcMain.handle('hr:ask', async (_event, question: string) => {
-  const { data: sessionData } = await supabase.auth.getSession()
-  const token = sessionData.session?.access_token
-  if (!token) return { error: 'Not logged in' }
-
+  if (!currentEmployee) return { error: 'Not logged in' }
   try {
     const res = await fetch(`${CMS_BASE_URL}/api/policies/ask`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { 'Content-Type': 'application/json', ...(await widgetAuthHeaders()) },
       body: JSON.stringify({ question }),
     })
     return res.json()
@@ -625,12 +655,15 @@ ipcMain.handle('hr:ask', async (_event, question: string) => {
 
 ipcMain.handle('documents:getAll', async () => {
   if (!currentEmployee) return []
-  const { data } = await supabase
-    .from('policy_documents')
-    .select('id, name, file_type, file_url, target_level')
-    .eq('status', 'ready')
-    .order('name', { ascending: true })
-  return data ?? []
+  try {
+    const res = await fetch(`${CMS_BASE_URL}/api/documents`, {
+      headers: await widgetAuthHeaders(),
+    })
+    if (!res.ok) return []
+    return res.json()
+  } catch {
+    return []
+  }
 })
 
 ipcMain.handle('documents:openUrl', async (_event, url: string) => {
@@ -647,13 +680,10 @@ ipcMain.handle('documents:logAccess', async (_event, documentId: string) => {
 
 ipcMain.handle('polls:getActive', async (): Promise<Poll[]> => {
   if (!currentEmployee) return []
-  const { data: sessionData } = await supabase.auth.getSession()
-  const token = sessionData.session?.access_token
-  if (!token) return []
 
   try {
     const res = await fetch(`${CMS_BASE_URL}/api/polls/active`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: await widgetAuthHeaders(),
     })
     console.log('[polls:getActive] status:', res.status)
     if (!res.ok) {
@@ -672,14 +702,11 @@ ipcMain.handle('polls:getActive', async (): Promise<Poll[]> => {
 
 ipcMain.handle('polls:vote', async (_event, pollId: string, optionIndex: number) => {
   if (!currentEmployee) return { error: 'Not logged in' }
-  const { data: sessionData } = await supabase.auth.getSession()
-  const token = sessionData.session?.access_token
-  if (!token) return { error: 'Not logged in' }
 
   try {
     const res = await fetch(`${CMS_BASE_URL}/api/polls/${pollId}/vote`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      headers: { 'Content-Type': 'application/json', ...(await widgetAuthHeaders()) },
       body: JSON.stringify({ optionIndex }),
     })
     return res.json()
@@ -698,6 +725,52 @@ ipcMain.handle('polls:getPopupPoll', () => {
   const p = pollForPopup
   pollForPopup = null
   return p
+})
+
+ipcMain.handle('app:quit', () => app.quit())
+ipcMain.handle('app:isUpdateReady', () => updateDownloaded)
+ipcMain.handle('app:openReleasePage', () => {
+  shell.openExternal('https://github.com/rishidhiraj-cloud/HR_CMS/releases/latest')
+})
+
+async function checkForNewVersion() {
+  try {
+    const res = await net.fetch('https://api.github.com/repos/rishidhiraj-cloud/HR_CMS/releases/latest', {
+      headers: { 'User-Agent': 'HR-Widget' }
+    })
+    if (!res.ok) return
+    const data = await res.json() as { tag_name: string }
+    const latest = data.tag_name.replace('v', '')
+    const current = app.getVersion()
+    console.log(`[updater] current: ${current}, latest: ${latest}`)
+    if (latest !== current) {
+      updateDownloaded = true
+      feedWindow?.webContents.send('app:updateReady')
+    }
+  } catch (err) {
+    console.log('[updater] check failed:', err)
+  }
+}
+
+const FEED_NORMAL_W = 390
+const FEED_NORMAL_H = 546
+const FEED_EXPANDED_W = Math.round(390 * 1.4)   // 546
+const FEED_EXPANDED_H = Math.round(546 * 1.4)   // 764
+const EDGE_MARGIN = 12
+
+ipcMain.handle('widget:minimize', () => {
+  feedWindow?.hide()
+})
+
+ipcMain.handle('widget:setExpanded', (_event, expanded: boolean) => {
+  if (!feedWindow || feedWindow.isDestroyed()) return
+  const { workArea } = screen.getPrimaryDisplay()
+  const w = expanded ? FEED_EXPANDED_W : FEED_NORMAL_W
+  const h = expanded ? FEED_EXPANDED_H : FEED_NORMAL_H
+  const x = workArea.x + workArea.width - w - EDGE_MARGIN
+  const y = Math.max(workArea.y + EDGE_MARGIN, workArea.y + workArea.height - h - EDGE_MARGIN)
+  feedWindow.setSize(w, h)
+  feedWindow.setPosition(x, y)
 })
 
 app.on('window-all-closed', (e: { preventDefault: () => void }) => e.preventDefault())

@@ -64,4 +64,8 @@ nsis:
   createStartMenuShortcut: true
   shortcutName: HR Widget
 
-publish: null
+publish:
+  provider: github
+  owner: rishidhiraj-cloud
+  repo: HR_CMS
+  releaseType: draft

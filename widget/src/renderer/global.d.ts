@@ -24,6 +24,13 @@ interface HrWidgetAPI {
   clearPollBadge(): Promise<void>
   getPollPopup(): Promise<Poll | null>
   onNewPoll(cb: () => void): () => void
+  onRequestPasscode(cb: (action: 'quit') => void): () => void
+  quitApp(): Promise<void>
+  minimizeWidget(): Promise<void>
+  setExpanded(expanded: boolean): Promise<void>
+  onUpdateReady(cb: () => void): () => void
+  isUpdateReady(): Promise<boolean>
+  openReleasePage(): Promise<void>
 }
 
 declare global {
