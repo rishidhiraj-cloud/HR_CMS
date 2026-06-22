@@ -1,9 +1,19 @@
+export const dynamic = 'force-dynamic'
+
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase-server'
+import { createClient as createServiceClient } from '@supabase/supabase-js'
 import MessageTable from '@/components/MessageTable'
 import AppLayout from '@/components/AppLayout'
 import type { Message } from '@/lib/types'
+
+function svc() {
+  return createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
 
 export default async function MessagesPage({
   searchParams,
@@ -25,10 +35,11 @@ export default async function MessagesPage({
   if (filter === 'scheduled') query = query.is('published_at', null).not('scheduled_at', 'is', null)
   if (filter === 'live') query = query.not('published_at', 'is', null)
 
+  const admin = svc()
   const [{ data: hrUser }, { data: messages }, { data: readData }] = await Promise.all([
     supabase.from('hr_users').select('name').eq('id', user.id).single(),
     query,
-    supabase.from('message_reads').select('message_id'),
+    admin.from('message_reads').select('message_id'),
   ])
 
   const readCounts: Record<string, number> = {}

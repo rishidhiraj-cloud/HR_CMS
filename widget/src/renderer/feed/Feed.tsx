@@ -5,7 +5,7 @@ import modicareLogoUrl from '../assets/MCLogo.png'
 // @ts-ignore
 import kiteLogoUrl from '../assets/icon.png'
 
-const APP_VERSION = '1.0.10'
+const APP_VERSION = '1.0.11'
 
 type ActiveTab = 'announcements' | 'documents' | 'polls' | 'ai-search'
 

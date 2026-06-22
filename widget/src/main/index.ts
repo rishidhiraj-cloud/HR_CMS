@@ -197,17 +197,20 @@ async function checkForNewMessages() {
   if (anyNew) showMessagePopup()
 }
 
-// Sync all locally-seen messages to Supabase message_reads (catches up after migration or re-install)
+// Sync all locally-seen messages via CMS API (avoids Supabase session expiry issues)
 async function syncLocalReadsToSupabase() {
   if (!currentEmployee) return
   const seenIds = seenStore.getAllSeen()
   if (seenIds.length === 0) return
-  const rows = seenIds.map(id => ({ message_id: id, employee_id: currentEmployee!.id }))
-  const { error } = await supabase
-    .from('message_reads')
-    .upsert(rows, { onConflict: 'message_id,employee_id', ignoreDuplicates: true })
-  if (error) console.error('[syncReads] error:', error.message)
-  else console.log(`[syncReads] synced ${seenIds.length} reads`)
+  const headers = await widgetAuthHeaders()
+  let synced = 0
+  for (const id of seenIds) {
+    try {
+      const res = await fetch(`${CMS_BASE_URL}/api/messages/${id}/mark-read`, { method: 'POST', headers })
+      if (res.ok) synced++
+    } catch { /* ignore individual failures */ }
+  }
+  console.log(`[syncReads] synced ${synced}/${seenIds.length} reads via API`)
 }
 
 // Register a new unseen message (badge + feed sync) without showing a popup.
@@ -594,17 +597,13 @@ ipcMain.handle('messages:markSeen', (_event, id: string) => {
   // Sync feed window so the purple dot disappears immediately
   feedWindow?.webContents.send('feed:markedSeen', id)
 
-  // Fire-and-forget: persist read receipt to Supabase so HR can see it
+  // Fire-and-forget: persist read receipt via CMS API (service role key — bypasses auth/RLS issues)
   if (currentEmployee) {
-    supabase
-      .from('message_reads')
-      .upsert(
-        { message_id: id, employee_id: currentEmployee.id },
-        { onConflict: 'message_id,employee_id', ignoreDuplicates: true }
-      )
-      .then(({ error }) => {
-        if (error) console.error('[markSeen] read receipt error:', error.message)
-      })
+    widgetAuthHeaders().then(headers => {
+      fetch(`${CMS_BASE_URL}/api/messages/${id}/mark-read`, { method: 'POST', headers })
+        .then(res => { if (!res.ok) console.error('[markSeen] read receipt failed:', res.status) })
+        .catch(err => console.error('[markSeen] read receipt error:', err))
+    })
   }
 })
 

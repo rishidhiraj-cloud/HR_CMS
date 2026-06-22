@@ -1,6 +1,6 @@
 {
   "name": "hr-widget",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "description": "HR message widget for employees",
   "author": "Modi Enterprise",
   "main": "dist/main/index.js",
