@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import type { Message, Poll } from '../../shared/types'
+import { getTheme } from '../theme'
 
 const HEADER = {
   background: '#f8fafc',
@@ -11,9 +12,8 @@ const HEADER = {
   WebkitAppRegion: 'drag',
 } as React.CSSProperties
 
-const MC_BADGE = {
+const MC_BADGE_BASE = {
   width: 24, height: 24, borderRadius: 6,
-  background: 'linear-gradient(135deg,#0d9488,#0f766e)',
   display: 'flex', alignItems: 'center', justifyContent: 'center',
   fontSize: 8, fontWeight: 700, color: 'white',
   letterSpacing: '0.2px', flexShrink: 0,
@@ -23,7 +23,7 @@ const MC_BADGE = {
 
 function PollPopup() {
   const [poll, setPoll] = useState<Poll | null | undefined>(undefined)
-  const [employee, setEmployee] = useState<{ name: string } | null>(null)
+  const [employee, setEmployee] = useState<{ name: string; company?: string } | null>(null)
 
   useEffect(() => {
     window.hrWidget.getEmployee().then(emp => setEmployee(emp))
@@ -32,6 +32,8 @@ function PollPopup() {
 
   if (poll === undefined) return null
   if (poll === null) { window.close(); return null }
+
+  const theme = getTheme(employee?.company)
 
   async function handleVote() {
     await window.hrWidget.openFeedToPolls()
@@ -42,7 +44,7 @@ function PollPopup() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#ffffff' }}>
       <div style={HEADER}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-          <div style={MC_BADGE}>MC</div>
+          <div style={{ ...MC_BADGE_BASE, background: theme.badgeGradient }}>MC</div>
           <span style={{ color: '#475569', fontSize: 11, fontWeight: 600 }}>M-Connect · New Poll</span>
         </div>
         {employee && (
@@ -68,7 +70,7 @@ function PollPopup() {
         </button>
         <button
           onClick={handleVote}
-          style={{ background: 'linear-gradient(135deg,#0d9488,#0891b2)', color: 'white', border: 'none', padding: '7px 20px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+          style={{ background: theme.primaryGradient, color: 'white', border: 'none', padding: '7px 20px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
         >
           Vote Now →
         </button>
@@ -81,7 +83,7 @@ function PollPopup() {
 
 function AnnouncementPopup() {
   const [messages, setMessages] = useState<Message[]>([])
-  const [employee, setEmployee] = useState<{ name: string } | null>(null)
+  const [employee, setEmployee] = useState<{ name: string; company?: string } | null>(null)
 
   useEffect(() => {
     window.hrWidget.getEmployee().then(emp => setEmployee(emp))
@@ -97,6 +99,7 @@ function AnnouncementPopup() {
 
   const msg = messages[0]
   const moreCount = messages.length - 1
+  const theme = getTheme(employee?.company)
 
   async function handleClose() {
     await window.hrWidget.markSeen(msg.id)
@@ -113,7 +116,7 @@ function AnnouncementPopup() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#ffffff' }}>
       <div style={HEADER}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-          <div style={MC_BADGE}>MC</div>
+          <div style={{ ...MC_BADGE_BASE, background: theme.badgeGradient }}>MC</div>
           <span style={{ color: '#475569', fontSize: 11, fontWeight: 600 }}>M-Connect · Announcement</span>
         </div>
         {employee && (
@@ -137,7 +140,7 @@ function AnnouncementPopup() {
         {moreCount > 0 ? (
           <button
             onClick={handleOpenUnread}
-            style={{ background: 'none', border: 'none', color: '#0d9488', fontSize: 11, cursor: 'pointer', padding: 0, fontWeight: 600 }}
+            style={{ background: 'none', border: 'none', color: theme.primary, fontSize: 11, cursor: 'pointer', padding: 0, fontWeight: 600 }}
           >
             {moreCount} more unread →
           </button>
@@ -146,7 +149,7 @@ function AnnouncementPopup() {
         )}
         <button
           onClick={handleClose}
-          style={{ background: 'linear-gradient(135deg,#0d9488,#0891b2)', color: 'white', border: 'none', padding: '7px 20px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+          style={{ background: theme.primaryGradient, color: 'white', border: 'none', padding: '7px 20px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
         >
           Dismiss
         </button>
