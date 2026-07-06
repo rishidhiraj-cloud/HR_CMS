@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 
 export default function ChangePasswordModal({
   user,
@@ -45,7 +46,7 @@ export default function ChangePasswordModal({
     color: 'white',
   }
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.60)', backdropFilter: 'blur(4px)' }}
@@ -108,6 +109,7 @@ export default function ChangePasswordModal({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
