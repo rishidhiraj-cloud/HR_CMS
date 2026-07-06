@@ -15,7 +15,7 @@ describe('EmployeeForm', () => {
 
   it('shows error if name is empty on submit', async () => {
     render(<EmployeeForm companies={[]} departments={[]} levels={[]} onSuccess={jest.fn()} />)
-    await userEvent.click(screen.getByText('Save'))
+    await userEvent.click(screen.getByRole('button', { name: /save/i }))
     expect(await screen.findByText('Name is required')).toBeInTheDocument()
   })
 
@@ -27,7 +27,7 @@ describe('EmployeeForm', () => {
     await userEvent.type(screen.getByPlaceholderText('Full name'), 'Jane Smith')
     await userEvent.type(screen.getByPlaceholderText('work@company.com'), 'jane@company.com')
     await userEvent.type(screen.getByPlaceholderText('Mobile number'), '9999999999')
-    await userEvent.click(screen.getByText('Save'))
+    await userEvent.click(screen.getByRole('button', { name: /save/i }))
 
     expect(await screen.findByText('Please select a company')).toBeInTheDocument()
   })

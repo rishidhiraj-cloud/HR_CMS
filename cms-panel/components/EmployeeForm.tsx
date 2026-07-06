@@ -193,7 +193,7 @@ export default function EmployeeForm({ companies, departments, levels, initial, 
       >
         {saving ? (
           <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Saving…</>
-        ) : 'Save'}
+        ) : isEdit ? 'Save Changes' : 'Save Employee'}
       </button>
     </form>
   )
