@@ -1,4 +1,4 @@
-export type TargetType = 'all' | 'dept' | 'role'
+export type TargetType = 'all' | 'dept' | 'role' | 'company'
 
 export interface Message {
   id: string
