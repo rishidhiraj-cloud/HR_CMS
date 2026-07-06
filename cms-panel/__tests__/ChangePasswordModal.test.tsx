@@ -52,4 +52,15 @@ describe('ChangePasswordModal', () => {
 
     expect(await screen.findByText('Something went wrong')).toBeInTheDocument()
   })
+
+  it('shows an inline error and re-enables Save when the network request rejects', async () => {
+    global.fetch = jest.fn().mockRejectedValue(new Error('Network error')) as unknown as typeof fetch
+
+    render(<ChangePasswordModal user={user} onClose={jest.fn()} />)
+    await userEvent.type(screen.getByPlaceholderText('Min 6 characters'), 'newpassword123')
+    await userEvent.click(screen.getByText('Save'))
+
+    expect(await screen.findByText('Failed to change password')).toBeInTheDocument()
+    expect(screen.getByText('Save')).not.toBeDisabled()
+  })
 })

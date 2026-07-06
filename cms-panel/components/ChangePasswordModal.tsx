@@ -20,18 +20,23 @@ export default function ChangePasswordModal({
     setSuccess('')
     setSaving(true)
 
-    const res = await fetch(`/api/admin/users/${user.id}/password`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password }),
-    })
-    const data = await res.json()
-    setSaving(false)
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}/password`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      })
+      const data = await res.json()
+      setSaving(false)
 
-    if (!res.ok) { setError(data.error ?? 'Failed to change password'); return }
+      if (!res.ok) { setError(data.error ?? 'Failed to change password'); return }
 
-    setSuccess('Password updated successfully')
-    setTimeout(onClose, 1200)
+      setSuccess('Password updated successfully')
+      setTimeout(onClose, 1200)
+    } catch {
+      setSaving(false)
+      setError('Failed to change password')
+    }
   }
 
   const inputStyle = {
