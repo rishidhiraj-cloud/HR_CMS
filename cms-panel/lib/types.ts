@@ -18,6 +18,7 @@ export interface Employee {
   email: string
   mobile: string
   password: string
+  company: string
   department: string
   role: string
   is_active: boolean

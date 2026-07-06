@@ -3,6 +3,7 @@ import { useState } from 'react'
 import type { Employee } from '@/lib/types'
 
 interface Props {
+  companies: string[]
   departments: string[]
   levels: string[]
   initial?: Employee
@@ -10,12 +11,13 @@ interface Props {
   onSuccess: () => void
 }
 
-export default function EmployeeForm({ departments, levels, initial, employeeId, onSuccess }: Props) {
+export default function EmployeeForm({ companies, departments, levels, initial, employeeId, onSuccess }: Props) {
   const isEdit = !!employeeId
 
   const [name, setName] = useState(initial?.name ?? '')
   const [email, setEmail] = useState(initial?.email ?? '')
   const [mobile, setMobile] = useState(initial?.mobile ?? '')
+  const [company, setCompany] = useState(initial?.company ?? '')
   const [department, setDepartment] = useState(initial?.department ?? '')
   const [level, setLevel] = useState(initial?.role ?? '')
   const [error, setError] = useState('')
@@ -26,6 +28,7 @@ export default function EmployeeForm({ departments, levels, initial, employeeId,
     if (!name.trim()) { setError('Name is required'); return }
     if (!email.trim()) { setError('Email is required'); return }
     if (!mobile.trim()) { setError('Mobile is required'); return }
+    if (!company) { setError('Please select a company'); return }
     if (!department) { setError('Please select a department'); return }
     if (!level) { setError('Please select a level'); return }
     setError('')
@@ -35,6 +38,7 @@ export default function EmployeeForm({ departments, levels, initial, employeeId,
       name: name.trim(),
       email: email.trim(),
       mobile: mobile.trim(),
+      company,
       department,
       role: level,
     }
@@ -121,6 +125,25 @@ export default function EmployeeForm({ departments, levels, initial, employeeId,
 
         <div className="relative">
           <select
+            value={company}
+            onChange={e => setCompany(e.target.value)}
+            className={baseInputCls}
+            style={selectStyle}
+            onFocus={onFocus}
+            onBlur={onBlur}
+          >
+            <option value="" style={{ background: '#0b2d3d', color: 'rgba(255,255,255,0.5)' }}>Select Company</option>
+            {companies.length === 0 && (
+              <option disabled style={{ background: '#0b2d3d', color: 'rgba(255,255,255,0.4)' }}>No companies — add in Masters</option>
+            )}
+            {companies.map(c => (
+              <option key={c} value={c} style={{ background: '#0b2d3d', color: 'white' }}>{c}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="relative">
+          <select
             value={department}
             onChange={e => setDepartment(e.target.value)}
             className={baseInputCls}
@@ -170,7 +193,7 @@ export default function EmployeeForm({ departments, levels, initial, employeeId,
       >
         {saving ? (
           <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Saving…</>
-        ) : isEdit ? 'Save Changes' : 'Save Employee'}
+        ) : 'Save'}
       </button>
     </form>
   )
