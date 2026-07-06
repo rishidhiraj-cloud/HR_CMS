@@ -34,11 +34,12 @@ interface Props {
   employees: Employee[]
   departments: string[]
   levels: string[]
+  companies: string[]
 }
 
 type StatusFilter = 'all' | 'online' | 'offline'
 
-export default function EmployeesClient({ employees: initial, departments, levels }: Props) {
+export default function EmployeesClient({ employees: initial, departments, levels, companies }: Props) {
   const router = useRouter()
   const [employees, setEmployees] = useState(initial)
   const [formMode, setFormMode] = useState<'add' | 'edit' | null>(null)
@@ -164,6 +165,7 @@ export default function EmployeesClient({ employees: initial, departments, level
           <EmployeeForm
             departments={departments}
             levels={levels}
+            companies={companies}
             initial={editingEmployee ?? undefined}
             employeeId={editingEmployee?.id}
             onSuccess={handleFormSuccess}

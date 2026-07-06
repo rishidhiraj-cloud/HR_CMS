@@ -9,8 +9,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { name, email, mobile, department, role } = await req.json()
-  if (!name || !email || !mobile || !department || !role) {
+  const { name, email, mobile, company, department, role } = await req.json()
+  if (!name || !email || !mobile || !company || !department || !role) {
     return NextResponse.json({ error: 'All fields required' }, { status: 400 })
   }
 
@@ -38,6 +38,7 @@ export async function POST(req: Request) {
     name,
     email,
     mobile,
+    company,
     department,
     role,
   })

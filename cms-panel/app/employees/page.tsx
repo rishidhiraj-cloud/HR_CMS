@@ -8,10 +8,11 @@ export default async function EmployeesPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [{ data: employees }, { data: departments }, { data: levels }, { data: presence }] = await Promise.all([
+  const [{ data: employees }, { data: departments }, { data: levels }, { data: companies }, { data: presence }] = await Promise.all([
     supabase.from('employees').select('*').order('name'),
     supabase.from('departments').select('id, name').order('name'),
     supabase.from('levels').select('id, name').order('name'),
+    supabase.from('companies').select('id, name').order('name'),
     supabase.from('employee_presence').select('employee_id, last_seen_at'),
   ])
 
@@ -28,6 +29,7 @@ export default async function EmployeesPage() {
       employees={employeesWithPresence}
       departments={(departments ?? []).map(d => d.name)}
       levels={(levels ?? []).map(l => l.name)}
+      companies={(companies ?? []).map(c => c.name)}
     />
   )
 }

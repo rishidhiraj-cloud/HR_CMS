@@ -26,7 +26,7 @@ export async function PUT(
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
-  const { name, email, mobile, department, role } = await req.json()
+  const { name, email, mobile, company, department, role } = await req.json()
 
   const admin = adminClient()
 
@@ -40,7 +40,7 @@ export async function PUT(
     }
   }
 
-  const { error } = await admin.from('employees').update({ name, email, mobile, department, role }).eq('id', id)
+  const { error } = await admin.from('employees').update({ name, email, mobile, company, department, role }).eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   return NextResponse.json({ ok: true })
