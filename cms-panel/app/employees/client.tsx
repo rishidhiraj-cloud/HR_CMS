@@ -29,19 +29,6 @@ function OnlineDot({ online }: { online: boolean }) {
   )
 }
 
-function PasswordCell({ password }: { password: string }) {
-  const [visible, setVisible] = useState(false)
-  return (
-    <span className="flex items-center gap-2">
-      <span className="font-mono text-xs" style={{ color: 'rgba(255,255,255,0.60)' }}>
-        {visible ? password : '••••••••'}
-      </span>
-      <button onClick={() => setVisible(v => !v)} className="text-xs transition-colors" style={{ color: '#5eead4' }}>
-        {visible ? 'Hide' : 'Show'}
-      </button>
-    </span>
-  )
-}
 
 interface Props {
   employees: Employee[]
@@ -256,7 +243,7 @@ export default function EmployeesClient({ employees: initial, departments, level
         <table className="w-full text-sm">
           <thead>
             <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)' }}>
-              {['', 'Name', 'Email', 'Mobile', 'Password', 'Department', 'Level', ''].map((h, i) => (
+              {['', 'Name', 'Email', 'Mobile', 'Department', 'Level', ''].map((h, i) => (
                 <th key={i} className="text-left px-4 py-3.5 text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.40)' }}>{h}</th>
               ))}
             </tr>
@@ -292,7 +279,6 @@ export default function EmployeesClient({ employees: initial, departments, level
                   </td>
                   <td className="px-4 py-3.5" style={{ color: 'rgba(255,255,255,0.55)' }}>{emp.email}</td>
                   <td className="px-4 py-3.5" style={{ color: 'rgba(255,255,255,0.55)' }}>{emp.mobile}</td>
-                  <td className="px-4 py-3.5"><PasswordCell password={emp.password} /></td>
                   <td className="px-4 py-3.5" style={{ color: 'rgba(255,255,255,0.55)' }}>{emp.department}</td>
                   <td className="px-4 py-3.5" style={{ color: 'rgba(255,255,255,0.55)' }}>{emp.role}</td>
                   <td className="px-4 py-3.5">

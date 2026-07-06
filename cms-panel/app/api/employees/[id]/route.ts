@@ -26,27 +26,21 @@ export async function PUT(
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
-  const { name, email, mobile, department, role, password } = await req.json()
+  const { name, email, mobile, department, role } = await req.json()
 
   const admin = adminClient()
 
-  // Update Supabase Auth if email or password changed
-  const authUpdates: Record<string, string> = {}
-  if (email) authUpdates.email = email
-  if (password) authUpdates.password = password
-  if (Object.keys(authUpdates).length > 0) {
-    const { error } = await admin.auth.admin.updateUserById(id, authUpdates)
+  // Update Supabase Auth email if it changed
+  if (email) {
+    const { error } = await admin.auth.admin.updateUserById(id, { email })
     if (error) {
-      const msg = error.message || JSON.stringify(error) || 'Failed to update auth credentials'
+      const msg = error.message || JSON.stringify(error) || 'Failed to update auth email'
       console.error('[employee PUT] auth update error:', msg)
       return NextResponse.json({ error: msg }, { status: 500 })
     }
   }
 
-  const dbUpdate: Record<string, string> = { name, email, mobile, department, role }
-  if (password) dbUpdate.password = password
-
-  const { error } = await admin.from('employees').update(dbUpdate).eq('id', id)
+  const { error } = await admin.from('employees').update({ name, email, mobile, department, role }).eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   return NextResponse.json({ ok: true })

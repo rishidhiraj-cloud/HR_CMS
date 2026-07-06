@@ -16,7 +16,6 @@ export default function EmployeeForm({ departments, levels, initial, employeeId,
   const [name, setName] = useState(initial?.name ?? '')
   const [email, setEmail] = useState(initial?.email ?? '')
   const [mobile, setMobile] = useState(initial?.mobile ?? '')
-  const [password, setPassword] = useState('')
   const [department, setDepartment] = useState(initial?.department ?? '')
   const [level, setLevel] = useState(initial?.role ?? '')
   const [error, setError] = useState('')
@@ -27,8 +26,6 @@ export default function EmployeeForm({ departments, levels, initial, employeeId,
     if (!name.trim()) { setError('Name is required'); return }
     if (!email.trim()) { setError('Email is required'); return }
     if (!mobile.trim()) { setError('Mobile is required'); return }
-    if (!isEdit && !password.trim()) { setError('Password is required'); return }
-    if (password && password.length < 6) { setError('Password must be at least 6 characters'); return }
     if (!department) { setError('Please select a department'); return }
     if (!level) { setError('Please select a level'); return }
     setError('')
@@ -41,7 +38,6 @@ export default function EmployeeForm({ departments, levels, initial, employeeId,
       department,
       role: level,
     }
-    if (password) body.password = password.trim()
 
     const res = await fetch(
       isEdit ? `/api/employees/${employeeId}` : '/api/employees',
@@ -117,16 +113,6 @@ export default function EmployeeForm({ departments, levels, initial, employeeId,
           placeholder="Mobile number"
           value={mobile}
           onChange={e => setMobile(e.target.value)}
-          className={baseInputCls}
-          style={inputStyle}
-          onFocus={onFocus}
-          onBlur={onBlur}
-        />
-        <input
-          type="password"
-          placeholder={isEdit ? 'New password (leave blank to keep)' : 'Password'}
-          value={password}
-          onChange={e => setPassword(e.target.value)}
           className={baseInputCls}
           style={inputStyle}
           onFocus={onFocus}

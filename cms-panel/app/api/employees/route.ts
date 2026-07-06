@@ -9,12 +9,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { name, email, mobile, password, department, role } = await req.json()
-  if (!name || !email || !mobile || !password || !department || !role) {
+  const { name, email, mobile, department, role } = await req.json()
+  if (!name || !email || !mobile || !department || !role) {
     return NextResponse.json({ error: 'All fields required' }, { status: 400 })
-  }
-  if (password.length < 6) {
-    return NextResponse.json({ error: 'Password must be at least 6 characters' }, { status: 400 })
   }
 
   const adminSupabase = createServiceClient(
@@ -22,9 +19,12 @@ export async function POST(req: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
+  // Generate a random internal password — employees authenticate via Microsoft SSO only
+  const internalPassword = crypto.randomUUID() + crypto.randomUUID()
+
   const { data: authData, error: createError } = await adminSupabase.auth.admin.createUser({
     email,
-    password,
+    password: internalPassword,
     email_confirm: true,
   })
   if (createError) return NextResponse.json({ error: createError.message }, { status: 500 })
@@ -38,7 +38,6 @@ export async function POST(req: Request) {
     name,
     email,
     mobile,
-    password,
     department,
     role,
   })
