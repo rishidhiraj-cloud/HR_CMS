@@ -42,6 +42,7 @@ type StatusFilter = 'all' | 'online' | 'offline'
 export default function EmployeesClient({ employees: initial, departments, levels, companies }: Props) {
   const router = useRouter()
   const [employees, setEmployees] = useState(initial)
+  useEffect(() => { setEmployees(initial) }, [initial])
   const [formMode, setFormMode] = useState<'add' | 'edit' | null>(null)
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null)
   const [togglingId, setTogglingId] = useState<string | null>(null)
@@ -245,7 +246,7 @@ export default function EmployeesClient({ employees: initial, departments, level
         <table className="w-full text-sm">
           <thead>
             <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)' }}>
-              {['', 'Name', 'Email', 'Mobile', 'Department', 'Level', ''].map((h, i) => (
+              {['', 'Name', 'Email', 'Mobile', 'Company', 'Department', 'Level', ''].map((h, i) => (
                 <th key={i} className="text-left px-4 py-3.5 text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.40)' }}>{h}</th>
               ))}
             </tr>
@@ -281,6 +282,7 @@ export default function EmployeesClient({ employees: initial, departments, level
                   </td>
                   <td className="px-4 py-3.5" style={{ color: 'rgba(255,255,255,0.55)' }}>{emp.email}</td>
                   <td className="px-4 py-3.5" style={{ color: 'rgba(255,255,255,0.55)' }}>{emp.mobile}</td>
+                  <td className="px-4 py-3.5" style={{ color: 'rgba(255,255,255,0.55)' }}>{emp.company}</td>
                   <td className="px-4 py-3.5" style={{ color: 'rgba(255,255,255,0.55)' }}>{emp.department}</td>
                   <td className="px-4 py-3.5" style={{ color: 'rgba(255,255,255,0.55)' }}>{emp.role}</td>
                   <td className="px-4 py-3.5">
