@@ -11,15 +11,16 @@ export default async function MastersPage() {
   const { data: hrUser } = await supabase.from('hr_users').select('name').eq('id', user.id).single()
   if (!hrUser) redirect('/login')
 
-  // Parallel fetch both masters
-  const [{ data: departments }, { data: levels }] = await Promise.all([
+  // Parallel fetch all masters
+  const [{ data: departments }, { data: levels }, { data: companies }] = await Promise.all([
     supabase.from('departments').select('*').order('name'),
     supabase.from('levels').select('*').order('name'),
+    supabase.from('companies').select('*').order('name'),
   ])
 
   return (
     <AppLayout title="Masters" userName={hrUser.name}>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <MasterTable
           title="Departments"
           noun="Department"
@@ -31,6 +32,12 @@ export default async function MastersPage() {
           noun="Level"
           initialItems={levels ?? []}
           apiPath="/api/masters/levels"
+        />
+        <MasterTable
+          title="Companies"
+          noun="Company"
+          initialItems={companies ?? []}
+          apiPath="/api/masters/companies"
         />
       </div>
     </AppLayout>
