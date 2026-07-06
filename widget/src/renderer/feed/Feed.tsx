@@ -905,7 +905,6 @@ const S = {
   } as React.CSSProperties,
 
   primaryBtn: {
-    background: 'linear-gradient(135deg, #0d9488, #0891b2)',
     color: 'white',
     border: 'none',
     borderRadius: 8,
