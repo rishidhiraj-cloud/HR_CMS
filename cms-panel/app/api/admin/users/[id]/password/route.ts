@@ -28,8 +28,18 @@ export async function PATCH(
   const { id } = await params
   const { password } = await req.json()
 
-  if (!password || password.length < 6) {
+  if (!password || !password.trim() || password.length < 6) {
     return NextResponse.json({ error: 'Password must be at least 6 characters' }, { status: 400 })
+  }
+
+  const { data: targetUser, error: lookupError } = await adminClient()
+    .from('hr_users')
+    .select('id')
+    .eq('id', id)
+    .single()
+
+  if (lookupError || !targetUser) {
+    return NextResponse.json({ error: 'User not found' }, { status: 404 })
   }
 
   const { error } = await adminClient().auth.admin.updateUserById(id, { password })

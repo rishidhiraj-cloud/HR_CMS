@@ -43,7 +43,7 @@ export default function UsersTable({ users }: { users: HrUser[] }) {
       </table>
 
       {changingUser && (
-        <ChangePasswordModal user={changingUser} onClose={() => setChangingUser(null)} />
+        <ChangePasswordModal key={changingUser.id} user={changingUser} onClose={() => setChangingUser(null)} />
       )}
     </>
   )

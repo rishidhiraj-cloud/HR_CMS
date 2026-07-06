@@ -1,12 +1,16 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import ChangePasswordModal from '@/components/ChangePasswordModal'
+
+const mockPush = jest.fn()
+jest.mock('next/navigation', () => ({ useRouter: () => ({ push: mockPush }) }))
 
 describe('ChangePasswordModal', () => {
   const user = { id: 'user-1', name: 'HR Admin' }
 
   afterEach(() => {
     jest.restoreAllMocks()
+    mockPush.mockClear()
   })
 
   it('renders the password field and user name', () => {
@@ -38,6 +42,31 @@ describe('ChangePasswordModal', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ password: 'newpassword123' }),
     })
+  })
+
+  it('shows a validation error for a whitespace-only password', async () => {
+    global.fetch = jest.fn()
+
+    render(<ChangePasswordModal user={user} onClose={jest.fn()} />)
+    await userEvent.type(screen.getByPlaceholderText('Min 6 characters'), '      ')
+    await userEvent.click(screen.getByText('Save'))
+
+    expect(await screen.findByText('Password must be at least 6 characters')).toBeInTheDocument()
+    expect(global.fetch).not.toHaveBeenCalled()
+  })
+
+  it('redirects to /login on a 401 response', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: async () => ({ error: 'Unauthorized' }),
+    }) as unknown as typeof fetch
+
+    render(<ChangePasswordModal user={user} onClose={jest.fn()} />)
+    await userEvent.type(screen.getByPlaceholderText('Min 6 characters'), 'newpassword123')
+    await userEvent.click(screen.getByText('Save'))
+
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/login'))
   })
 
   it('shows an inline error when the API call fails', async () => {

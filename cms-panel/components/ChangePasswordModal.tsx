@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useRouter } from 'next/navigation'
 
 export default function ChangePasswordModal({
   user,
@@ -9,6 +10,7 @@ export default function ChangePasswordModal({
   user: { id: string; name: string }
   onClose: () => void
 }) {
+  const router = useRouter()
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -16,7 +18,7 @@ export default function ChangePasswordModal({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (password.length < 6) { setError('Password must be at least 6 characters'); return }
+    if (!password.trim() || password.length < 6) { setError('Password must be at least 6 characters'); return }
     setError('')
     setSuccess('')
     setSaving(true)
@@ -29,6 +31,8 @@ export default function ChangePasswordModal({
       })
       const data = await res.json()
       setSaving(false)
+
+      if (res.status === 401) { router.push('/login'); return }
 
       if (!res.ok) { setError(data.error ?? 'Failed to change password'); return }
 

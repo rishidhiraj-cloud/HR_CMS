@@ -2,6 +2,8 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import UsersTable from '@/app/admin/users/UsersTable'
 
+jest.mock('next/navigation', () => ({ useRouter: () => ({ push: jest.fn() }) }))
+
 const users = [
   { id: 'user-1', name: 'HR Admin', email: 'rishi.dhiraj@gmail.com' },
 ]
