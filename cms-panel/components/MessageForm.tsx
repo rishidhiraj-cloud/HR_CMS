@@ -132,9 +132,10 @@ interface Props {
   messageId?: string
   departments?: string[]
   levels?: string[]
+  companies?: string[]
 }
 
-export default function MessageForm({ initial, messageId, departments = [], levels = [] }: Props) {
+export default function MessageForm({ initial, messageId, departments = [], levels = [], companies = [] }: Props) {
   const router = useRouter()
   const [title, setTitle] = useState(initial?.title ?? '')
   const [targetType, setTargetType] = useState<TargetType>(initial?.target_type ?? 'all')
@@ -392,13 +393,13 @@ export default function MessageForm({ initial, messageId, departments = [], leve
           <div>
             <label className="block text-sm font-medium mb-2" style={labelStyle}>Send To</label>
             <div className="flex gap-2 flex-wrap mb-2">
-              {(['all', 'dept', 'role'] as TargetType[]).map(t => (
+              {(['all', 'dept', 'role', 'company'] as TargetType[]).map(t => (
                 <button key={t} type="button"
                   onClick={() => { setTargetType(t); setTargetValue('') }}
                   className="px-3 py-1.5 rounded-full text-xs font-medium transition-all"
                   style={pillBtn(targetType === t)}
                 >
-                  {t === 'all' ? 'All Employees' : t === 'dept' ? 'By Department' : 'By Role'}
+                  {t === 'all' ? 'All Employees' : t === 'dept' ? 'By Department' : t === 'role' ? 'By Role' : 'By Company'}
                 </button>
               ))}
             </div>
@@ -428,6 +429,20 @@ export default function MessageForm({ initial, messageId, departments = [], leve
                 <option value="" style={{ background: '#0b2d3d', color: 'rgba(255,255,255,0.5)' }}>Select Level</option>
                 {levels.length === 0 && <option disabled style={{ background: '#0b2d3d', color: 'rgba(255,255,255,0.4)' }}>No levels — add in Masters</option>}
                 {levels.map(l => <option key={l} value={l} style={{ background: '#0b2d3d', color: 'white' }}>{l}</option>)}
+              </select>
+            )}
+            {targetType === 'company' && (
+              <select
+                value={targetValue}
+                onChange={e => setTargetValue(e.target.value)}
+                className="w-full rounded-xl px-4 py-2.5 text-sm outline-none transition-all"
+                style={selectStyle}
+                onFocus={e => { e.target.style.border = '1px solid rgba(13,148,136,0.60)' }}
+                onBlur={e => { e.target.style.border = '1px solid rgba(255,255,255,0.14)' }}
+              >
+                <option value="" style={{ background: '#0b2d3d', color: 'rgba(255,255,255,0.5)' }}>Select Company</option>
+                {companies.length === 0 && <option disabled style={{ background: '#0b2d3d', color: 'rgba(255,255,255,0.4)' }}>No companies — add in Masters</option>}
+                {companies.map(c => <option key={c} value={c} style={{ background: '#0b2d3d', color: 'white' }}>{c}</option>)}
               </select>
             )}
           </div>
