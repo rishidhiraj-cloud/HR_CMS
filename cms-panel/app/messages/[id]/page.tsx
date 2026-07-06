@@ -15,10 +15,11 @@ export default async function EditMessagePage({
 
   const { id } = await params
 
-  const [{ data: message }, { data: departments }, { data: levels }] = await Promise.all([
+  const [{ data: message }, { data: departments }, { data: levels }, { data: companies }] = await Promise.all([
     supabase.from('messages').select('*').eq('id', id).single(),
     supabase.from('departments').select('name').order('name'),
     supabase.from('levels').select('name').order('name'),
+    supabase.from('companies').select('name').order('name'),
   ])
 
   if (!message) notFound()
@@ -30,6 +31,7 @@ export default async function EditMessagePage({
         messageId={id}
         departments={(departments ?? []).map(d => d.name)}
         levels={(levels ?? []).map(l => l.name)}
+        companies={(companies ?? []).map(c => c.name)}
       />
     </AppLayout>
   )

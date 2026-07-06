@@ -8,9 +8,10 @@ export default async function NewMessagePage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [{ data: departments }, { data: levels }] = await Promise.all([
+  const [{ data: departments }, { data: levels }, { data: companies }] = await Promise.all([
     supabase.from('departments').select('name').order('name'),
     supabase.from('levels').select('name').order('name'),
+    supabase.from('companies').select('name').order('name'),
   ])
 
   return (
@@ -18,6 +19,7 @@ export default async function NewMessagePage() {
       <MessageForm
         departments={(departments ?? []).map(d => d.name)}
         levels={(levels ?? []).map(l => l.name)}
+        companies={(companies ?? []).map(c => c.name)}
       />
     </AppLayout>
   )

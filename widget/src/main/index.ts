@@ -362,6 +362,7 @@ function isTargetedAtEmployee(msg: Message, emp: Employee | null): boolean {
   if (msg.target_type === 'all') return true
   if (msg.target_type === 'dept') return msg.target_value === emp.department
   if (msg.target_type === 'role') return msg.target_value === emp.role
+  if (msg.target_type === 'company') return msg.target_value === emp.company
   return false
 }
 
