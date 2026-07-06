@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase-server'
 import type { HrUser } from '@/lib/types'
 import AppLayout from '@/components/AppLayout'
 import AdminUsersClient from './client'
+import UsersTable from './UsersTable'
 
 export default async function AdminUsersPage() {
   const supabase = await createClient()
@@ -30,29 +31,7 @@ export default async function AdminUsersPage() {
           <div className="px-5 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
             <h2 className="text-sm font-semibold" style={{ color: 'rgba(255,255,255,0.70)' }}>Existing Users</h2>
           </div>
-          <table className="w-full text-sm">
-            <thead>
-              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.07)', background: 'rgba(255,255,255,0.03)' }}>
-                <th className="text-left px-5 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.40)' }}>Name</th>
-                <th className="text-left px-5 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.40)' }}>Email</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(hrUsers as HrUser[] ?? []).map((u, i, arr) => (
-                <tr key={u.id} style={{ borderBottom: i < arr.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
-                  <td className="px-5 py-3.5 font-medium text-white">{u.name}</td>
-                  <td className="px-5 py-3.5" style={{ color: 'rgba(255,255,255,0.50)' }}>{u.email}</td>
-                </tr>
-              ))}
-              {!hrUsers?.length && (
-                <tr>
-                  <td colSpan={2} className="px-5 py-8 text-center text-sm" style={{ color: 'rgba(255,255,255,0.30)' }}>
-                    No CMS users yet
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+          <UsersTable users={hrUsers as HrUser[] ?? []} />
         </div>
 
         {/* Add user form */}
