@@ -30,8 +30,9 @@ export async function PUT(
 
   const admin = adminClient()
 
-  // Update Supabase Auth email if it changed
-  if (email) {
+  // Update Supabase Auth email only if it actually changed
+  const { data: existing } = await admin.from('employees').select('email').eq('id', id).single()
+  if (email && existing && email !== existing.email) {
     const { error } = await admin.auth.admin.updateUserById(id, { email })
     if (error) {
       const msg = error.message || JSON.stringify(error) || 'Failed to update auth email'
