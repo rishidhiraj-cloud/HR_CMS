@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react'
 import type { Employee, Message, HrDocument, Poll } from '../../shared/types'
+import { getTheme, rgba } from '../theme'
 // @ts-ignore
 import modicareLogoUrl from '../assets/MCLogo.png'
 // @ts-ignore
@@ -67,14 +68,7 @@ function renderMarkdown(md: string): string {
   return out.join('')
 }
 
-const BUBBLE_COLORS = [
-  'radial-gradient(circle at 40% 35%, rgba(13,148,136,0.60), rgba(8,145,178,0.25) 55%, transparent 80%)',
-  'radial-gradient(circle at 40% 35%, rgba(8,145,178,0.55), rgba(99,102,241,0.20) 55%, transparent 80%)',
-  'radial-gradient(circle at 40% 35%, rgba(94,234,212,0.50), rgba(13,148,136,0.20) 55%, transparent 80%)',
-  'radial-gradient(circle at 40% 35%, rgba(99,102,241,0.50), rgba(8,145,178,0.20) 55%, transparent 80%)',
-]
-
-function BubbleBackground({ mouseRef }: { mouseRef: React.MutableRefObject<{ x: number; y: number }> }) {
+function BubbleBackground({ mouseRef, bubbleColors }: { mouseRef: React.MutableRefObject<{ x: number; y: number }>; bubbleColors: string[] }) {
   const bubbles = useRef(
     Array.from({ length: 12 }, (_, i) => ({
       x: 40 + (i * 31) % 310,
@@ -126,7 +120,7 @@ function BubbleBackground({ mouseRef }: { mouseRef: React.MutableRefObject<{ x: 
             position: 'absolute',
             top: 0, left: 0,
             borderRadius: '50%',
-            background: BUBBLE_COLORS[i % 4],
+            background: bubbleColors[i % 4],
             width: b.baseR * 2,
             height: b.baseR * 2,
             transform: `translate(${b.x - b.baseR}px, ${b.y - b.baseR}px)`,
@@ -139,7 +133,6 @@ function BubbleBackground({ mouseRef }: { mouseRef: React.MutableRefObject<{ x: 
   )
 }
 
-const BG = 'linear-gradient(135deg, #0a0f1e 0%, #0b2d3d 45%, #0a1f2a 100%)'
 const HEADER_STYLE = {
   background: 'rgba(255,255,255,0.04)',
   borderBottom: '1px solid rgba(255,255,255,0.08)',
@@ -182,6 +175,8 @@ export default function Feed() {
   const [pollsLoaded, setPollsLoaded] = useState(false)
   const [votingId, setVotingId] = useState<string | null>(null)
   const [newPollAlert, setNewPollAlert] = useState(false)
+
+  const theme = getTheme(employee?.company)
 
   useEffect(() => {
     window.hrWidget.getEmployee().then(emp => setEmployee(emp ?? null))
@@ -361,7 +356,7 @@ export default function Feed() {
   // Loading
   if (employee === undefined) {
     return (
-      <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', background: BG }}>
+      <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', background: theme.bgGradient }}>
         <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: 12 }}>Loading…</span>
       </div>
     )
@@ -371,13 +366,13 @@ export default function Feed() {
   if (!employee) {
     return (
       <div
-        style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: BG, position: 'relative', overflow: 'hidden' }}
+        style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: theme.bgGradient, position: 'relative', overflow: 'hidden' }}
         onMouseMove={e => {
           const rect = e.currentTarget.getBoundingClientRect()
           loginMouseRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top }
         }}
       >
-        <BubbleBackground mouseRef={loginMouseRef} />
+        <BubbleBackground mouseRef={loginMouseRef} bubbleColors={theme.bubbleColors} />
 
         {/* Drag region */}
         <div style={{ height: 28, WebkitAppRegion: 'drag', flexShrink: 0, position: 'relative', zIndex: 1 } as React.CSSProperties} />
@@ -453,7 +448,7 @@ export default function Feed() {
         <div style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', padding: '8px 14px', WebkitAppRegion: 'drag' } as React.CSSProperties}>
           <button
             onClick={() => setSelected(null)}
-            style={{ background: 'linear-gradient(135deg,#0d9488,#0891b2)', color: 'white', border: 'none', borderRadius: 8, padding: '6px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer', WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+            style={{ background: theme.primaryGradient, color: 'white', border: 'none', borderRadius: 8, padding: '6px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer', WebkitAppRegion: 'no-drag' } as React.CSSProperties}
           >
             ← Back
           </button>
@@ -476,11 +471,11 @@ export default function Feed() {
     : messages
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: BG, position: 'relative' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: theme.bgGradient, position: 'relative' }}>
 
       {/* Header */}
       <div style={HEADER_STYLE}>
-        <div style={{ width: 30, height: 30, borderRadius: 8, background: 'linear-gradient(135deg,#0d9488,#0f766e)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: 'white', flexShrink: 0, letterSpacing: '0.2px' }}>MC</div>
+        <div style={{ width: 30, height: 30, borderRadius: 8, background: theme.badgeGradient, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: 'white', flexShrink: 0, letterSpacing: '0.2px' }}>MC</div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.55)', fontWeight: 600, letterSpacing: '0.6px', textTransform: 'uppercase', lineHeight: 1 }}>M-Connect</div>
           <div style={{ fontWeight: 600, fontSize: 12, color: '#ffffff', marginTop: 1 }}>Hi, {employee.name.split(' ')[0]} 👋</div>
@@ -561,8 +556,8 @@ export default function Feed() {
               flex: 1,
               background: 'none',
               border: 'none',
-              borderBottom: activeTab === tab.id ? '2px solid #0d9488' : '2px solid transparent',
-              color: activeTab === tab.id ? '#5eead4' : 'rgba(255,255,255,0.60)',
+              borderBottom: activeTab === tab.id ? `2px solid ${theme.primary}` : '2px solid transparent',
+              color: activeTab === tab.id ? theme.lightAccentText : 'rgba(255,255,255,0.60)',
               fontSize: 9,
               letterSpacing: '0.04em',
               cursor: 'pointer',
@@ -577,7 +572,7 @@ export default function Feed() {
           >
             {tab.label}
             {tab.badge > 0 && (
-              <span style={{ background: '#0d9488', color: 'white', fontSize: 9, fontWeight: 700, borderRadius: 8, padding: '1px 5px' }}>
+              <span style={{ background: theme.primary, color: 'white', fontSize: 9, fontWeight: 700, borderRadius: 8, padding: '1px 5px' }}>
                 {tab.badge}
               </span>
             )}
@@ -594,9 +589,9 @@ export default function Feed() {
                 { label: `Unread (${unseenIds.size})`, active: showUnreadOnly, onClick: () => setShowUnreadOnly(true) }]
                 .map(t => (
                   <button key={t.label} onClick={t.onClick} style={{
-                    background: t.active ? 'rgba(13,148,136,0.20)' : 'none',
-                    border: t.active ? '1px solid rgba(13,148,136,0.35)' : '1px solid transparent',
-                    color: t.active ? '#5eead4' : 'rgba(255,255,255,0.60)',
+                    background: t.active ? rgba(theme.primary, 0.20) : 'none',
+                    border: t.active ? `1px solid ${rgba(theme.primary, 0.35)}` : '1px solid transparent',
+                    color: t.active ? theme.lightAccentText : 'rgba(255,255,255,0.60)',
                     fontSize: 11, cursor: 'pointer', padding: '2px 10px', borderRadius: 6,
                   }}>{t.label}</button>
                 ))}
@@ -614,7 +609,7 @@ export default function Feed() {
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                    {isUnseen && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#0d9488', flexShrink: 0 }} />}
+                    {isUnseen && <span style={{ width: 6, height: 6, borderRadius: '50%', background: theme.primary, flexShrink: 0 }} />}
                     <div style={{ fontWeight: isUnseen ? 700 : 600, fontSize: 12, color: '#ffffff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{msg.title}</div>
                   </div>
                   <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.60)', marginBottom: 4, paddingLeft: isUnseen ? 12 : 0 }}>
@@ -674,7 +669,7 @@ export default function Feed() {
                 </div>
               </div>
               {doc.file_url && (
-                <span style={{ fontSize: 10, color: '#5eead4', flexShrink: 0 }}>Open ↗</span>
+                <span style={{ fontSize: 10, color: theme.lightAccentText, flexShrink: 0 }}>Open ↗</span>
               )}
             </div>
           ))}
@@ -719,13 +714,13 @@ export default function Feed() {
                           opacity: isVoting ? 0.6 : 1,
                           transition: 'background 0.1s',
                         }}
-                        onMouseEnter={e => { if (!isVoting) (e.currentTarget as HTMLElement).style.background = 'rgba(13,148,136,0.20)' }}
+                        onMouseEnter={e => { if (!isVoting) (e.currentTarget as HTMLElement).style.background = rgba(theme.primary, 0.20) }}
                         onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.07)' }}
                       >
                         {opt}
                       </button>
                     ))}
-                    {isVoting && <p style={{ fontSize: 10, color: '#5eead4', textAlign: 'center' }}>Submitting…</p>}
+                    {isVoting && <p style={{ fontSize: 10, color: theme.lightAccentText, textAlign: 'center' }}>Submitting…</p>}
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
@@ -737,13 +732,13 @@ export default function Feed() {
                       return (
                         <div key={i}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, marginBottom: 3 }}>
-                            <span style={{ color: isMyVote ? '#5eead4' : 'rgba(255,255,255,0.80)', fontWeight: isMyVote ? 600 : 400 }}>
+                            <span style={{ color: isMyVote ? theme.lightAccentText : 'rgba(255,255,255,0.80)', fontWeight: isMyVote ? 600 : 400 }}>
                               {isMyVote ? '✓ ' : ''}{opt}
                             </span>
                             <span style={{ color: 'rgba(255,255,255,0.65)' }}>{count} ({pct}%)</span>
                           </div>
                           <div style={{ height: 5, borderRadius: 3, overflow: 'hidden', background: 'rgba(255,255,255,0.08)' }}>
-                            <div style={{ height: '100%', borderRadius: 3, width: `${barWidth}%`, background: isMyVote ? 'linear-gradient(90deg,#0d9488,#0891b2)' : 'rgba(255,255,255,0.20)', transition: 'width 0.4s ease' }} />
+                            <div style={{ height: '100%', borderRadius: 3, width: `${barWidth}%`, background: isMyVote ? theme.primaryGradientHorizontal : 'rgba(255,255,255,0.20)', transition: 'width 0.4s ease' }} />
                           </div>
                         </div>
                       )
@@ -774,7 +769,7 @@ export default function Feed() {
               <div key={i} style={{ marginBottom: 16 }}>
                 {/* Question */}
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6 }}>
-                  <div style={{ background: 'linear-gradient(135deg,#0d9488,#0891b2)', color: 'white', borderRadius: '12px 12px 2px 12px', padding: '7px 11px', fontSize: 12, maxWidth: '85%', lineHeight: 1.4 }}>
+                  <div style={{ background: theme.primaryGradient, color: 'white', borderRadius: '12px 12px 2px 12px', padding: '7px 11px', fontSize: 12, maxWidth: '85%', lineHeight: 1.4 }}>
                     {qa.question}
                   </div>
                 </div>
@@ -797,8 +792,8 @@ export default function Feed() {
             ))}
             {asking && (
               <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: '2px 12px 12px 12px', padding: '10px 12px', maxWidth: '92%', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ width: 12, height: 12, borderRadius: '50%', border: '2px solid #5eead4', borderTopColor: 'transparent', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
-                <span style={{ color: '#5eead4', fontSize: 12 }}>Thinking…</span>
+                <span style={{ width: 12, height: 12, borderRadius: '50%', border: `2px solid ${theme.lightAccentText}`, borderTopColor: 'transparent', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
+                <span style={{ color: theme.lightAccentText, fontSize: 12 }}>Thinking…</span>
               </div>
             )}
             <div ref={qaEndRef} />
@@ -816,7 +811,7 @@ export default function Feed() {
             <button
               type="submit"
               disabled={!question.trim() || asking}
-              style={{ ...S.primaryBtn, padding: '7px 16px', fontSize: 12, opacity: (!question.trim() || asking) ? 0.5 : 1 }}
+              style={{ ...S.primaryBtn, background: theme.primaryGradient, padding: '7px 16px', fontSize: 12, opacity: (!question.trim() || asking) ? 0.5 : 1 }}
             >
               Ask
             </button>
@@ -826,7 +821,7 @@ export default function Feed() {
 
       {/* Update banner */}
       {updateReady && (
-        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(135deg,#0d9488,#0891b2)', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, zIndex: 50 }}>
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: theme.primaryGradient, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, zIndex: 50 }}>
           <span style={{ fontSize: 16 }}>🔄</span>
           <span style={{ flex: 1, color: '#ffffff', fontSize: 11, fontWeight: 600, lineHeight: 1.4 }}>A new version is available!</span>
           <button
@@ -874,7 +869,7 @@ export default function Feed() {
               </button>
               <button
                 onClick={submitPasscode}
-                style={{ flex: 1, background: 'linear-gradient(135deg,#0d9488,#0891b2)', border: 'none', color: '#ffffff', borderRadius: 8, padding: '8px 0', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                style={{ flex: 1, background: theme.primaryGradient, border: 'none', color: '#ffffff', borderRadius: 8, padding: '8px 0', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
               >
                 Confirm
               </button>
