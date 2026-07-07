@@ -1,4 +1,4 @@
-import { app, ipcMain, shell, BrowserWindow, screen, net } from 'electron'
+import { app, ipcMain, shell, BrowserWindow, screen, net, clipboard } from 'electron'
 import path from 'path'
 import crypto from 'crypto'
 import { createClient, RealtimeChannel } from '@supabase/supabase-js'
@@ -680,6 +680,27 @@ ipcMain.handle('documents:logAccess', async (_event, documentId: string) => {
     document_id: documentId,
     employee_id: currentEmployee.id,
   })
+})
+
+ipcMain.handle('quickLinks:getAll', async () => {
+  if (!currentEmployee) return []
+  try {
+    const res = await fetch(`${CMS_BASE_URL}/api/quick-links/active`, {
+      headers: await widgetAuthHeaders(),
+    })
+    if (!res.ok) return []
+    return res.json()
+  } catch {
+    return []
+  }
+})
+
+ipcMain.handle('quickLinks:openUrl', async (_event, url: string) => {
+  if (url) await shell.openExternal(url)
+})
+
+ipcMain.handle('quickLinks:copyToClipboard', async (_event, text: string) => {
+  if (text) clipboard.writeText(text)
 })
 
 ipcMain.handle('polls:getActive', async (): Promise<Poll[]> => {

@@ -31,6 +31,18 @@ export interface HrDocument {
   company: string
 }
 
+export interface QuickLink {
+  id: string
+  company: string
+  portal_name: string
+  purpose: string
+  how_to_use: string
+  type: 'website' | 'mobile_app'
+  url: string | null
+  android_app_url: string | null
+  ios_app_url: string | null
+}
+
 export interface Poll {
   id: string
   question: string

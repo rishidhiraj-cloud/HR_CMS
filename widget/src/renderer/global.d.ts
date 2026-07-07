@@ -1,4 +1,4 @@
-import type { Message, Employee, HrDocument, Poll } from '../shared/types'
+import type { Message, Employee, HrDocument, Poll, QuickLink } from '../shared/types'
 
 interface HrWidgetAPI {
   login(email: string, password: string): Promise<{ error?: string }>
@@ -19,6 +19,9 @@ interface HrWidgetAPI {
   getDocuments(): Promise<HrDocument[]>
   openDocumentUrl(url: string): Promise<void>
   logDocumentAccess(documentId: string): Promise<void>
+  getQuickLinks(): Promise<QuickLink[]>
+  openQuickLinkUrl(url: string): Promise<void>
+  copyToClipboard(text: string): Promise<void>
   getPolls(): Promise<Poll[]>
   votePoll(pollId: string, optionIndex: number): Promise<{ voteCounts?: number[]; totalVotes?: number; error?: string }>
   clearPollBadge(): Promise<void>
