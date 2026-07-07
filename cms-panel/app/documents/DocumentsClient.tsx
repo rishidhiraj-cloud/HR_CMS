@@ -61,6 +61,7 @@ export default function DocumentsClient({ initialDocuments, levels, companies }:
   // Filters
   const [searchName, setSearchName] = useState('')
   const [searchLevel, setSearchLevel] = useState('')
+  const [searchCompany, setSearchCompany] = useState('')
 
   // Edit state
   const [editDoc, setEditDoc] = useState<PolicyDocument | null>(null)
@@ -74,11 +75,12 @@ export default function DocumentsClient({ initialDocuments, levels, companies }:
   const [deleteDoc, setDeleteDoc] = useState<PolicyDocument | null>(null)
   const [deleting, setDeleting] = useState(false)
 
-  // Filter: name contains + level match (when level filter active, also show "All Levels" docs)
+  // Filter: name contains + level match (when level filter active, also show "All Levels" docs) + company match
   const filtered = documents.filter(doc => {
     const nameMatch = !searchName.trim() || doc.name.toLowerCase().includes(searchName.toLowerCase())
     const levelMatch = !searchLevel || doc.target_level === null || doc.target_level === searchLevel
-    return nameMatch && levelMatch
+    const companyMatch = !searchCompany || doc.company === searchCompany
+    return nameMatch && levelMatch && companyMatch
   })
 
   function openEdit(doc: PolicyDocument) {
@@ -136,7 +138,7 @@ export default function DocumentsClient({ initialDocuments, levels, companies }:
         className="rounded-xl p-4 mb-5 text-sm"
         style={{ background: 'rgba(13,148,136,0.10)', border: '1px solid rgba(13,148,136,0.25)', color: '#99f6e4' }}
       >
-        <strong className="text-teal-300">How it works:</strong> Upload PDF, DOCX or TXT documents. Assign a level to restrict visibility — employees only see documents for their level. &quot;All Levels&quot; documents are visible to everyone. The AI assistant only reads documents the employee is allowed to see.
+        <strong className="text-teal-300">How it works:</strong> Upload PDF, DOCX or TXT documents. Every document is scoped to one company — only employees of that company can see it or get AI answers from it. Assign a level to restrict visibility further — employees only see documents for their level. &quot;All Levels&quot; documents are visible to everyone in the company. The AI assistant only reads documents the employee is allowed to see.
       </div>
 
       {/* Filters */}
@@ -151,6 +153,18 @@ export default function DocumentsClient({ initialDocuments, levels, companies }:
           onBlur={e => { e.target.style.border = '1px solid rgba(255,255,255,0.14)' }}
         />
         <select
+          value={searchCompany}
+          onChange={e => setSearchCompany(e.target.value)}
+          style={{ ...inputStyle, maxWidth: 200, cursor: 'pointer' }}
+          onFocus={e => { e.target.style.border = '1px solid rgba(13,148,136,0.60)' }}
+          onBlur={e => { e.target.style.border = '1px solid rgba(255,255,255,0.14)' }}
+        >
+          <option value="">All Companies</option>
+          {companies.map(c => (
+            <option key={c.id} value={c.name}>{c.name}</option>
+          ))}
+        </select>
+        <select
           value={searchLevel}
           onChange={e => setSearchLevel(e.target.value)}
           style={{ ...inputStyle, maxWidth: 200, cursor: 'pointer' }}
@@ -162,9 +176,9 @@ export default function DocumentsClient({ initialDocuments, levels, companies }:
             <option key={l.id} value={l.name}>{l.name}</option>
           ))}
         </select>
-        {(searchName || searchLevel) && (
+        {(searchName || searchLevel || searchCompany) && (
           <button
-            onClick={() => { setSearchName(''); setSearchLevel('') }}
+            onClick={() => { setSearchName(''); setSearchLevel(''); setSearchCompany('') }}
             className="text-xs px-3 py-1 rounded-lg transition-all"
             style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.50)', border: '1px solid rgba(255,255,255,0.14)' }}
           >
@@ -196,7 +210,7 @@ export default function DocumentsClient({ initialDocuments, levels, companies }:
           <table className="w-full text-sm">
             <thead>
               <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)' }}>
-                {['Document', 'Type', 'Level', 'Status', 'Chunks', 'Uploaded', 'File', 'Actions'].map(h => (
+                {['Document', 'Type', 'Company', 'Level', 'Status', 'Chunks', 'Uploaded', 'File', 'Actions'].map(h => (
                   <th key={h} className="px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.40)' }}>{h}</th>
                 ))}
               </tr>
@@ -208,6 +222,14 @@ export default function DocumentsClient({ initialDocuments, levels, companies }:
                   <tr key={doc.id} style={{ borderBottom: i < filtered.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
                     <td className="px-4 py-3 font-medium text-white max-w-[200px] truncate">{doc.name}</td>
                     <td className="px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.40)' }}>{doc.file_type}</td>
+                    <td className="px-4 py-3">
+                      <span
+                        className="px-2.5 py-0.5 rounded-full text-xs font-medium"
+                        style={{ background: 'rgba(8,145,178,0.20)', color: '#67e8f9', border: '1px solid rgba(8,145,178,0.35)' }}
+                      >
+                        {doc.company}
+                      </span>
+                    </td>
                     <td className="px-4 py-3">
                       <span
                         className="px-2.5 py-0.5 rounded-full text-xs font-medium"

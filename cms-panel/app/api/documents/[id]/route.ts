@@ -31,7 +31,11 @@ export async function PATCH(
   const update: Record<string, string | null> = {}
   if (body.name !== undefined) update.name = body.name.trim()
   if (body.target_level !== undefined) update.target_level = body.target_level || null
-  if (body.company !== undefined) update.company = body.company
+  if (body.company !== undefined) {
+    const company = body.company.trim()
+    if (!company) return NextResponse.json({ error: 'Company is required' }, { status: 400 })
+    update.company = company
+  }
 
   const { error } = await svc().from('policy_documents').update(update).eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
