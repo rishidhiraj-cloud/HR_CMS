@@ -8,7 +8,7 @@ import kiteLogoUrl from '../assets/icon.png'
 
 const APP_VERSION = '1.0.11'
 
-type ActiveTab = 'announcements' | 'documents' | 'polls' | 'ai-search'
+type ActiveTab = 'announcements' | 'documents' | 'polls'
 
 interface QA {
   question: string
@@ -547,7 +547,6 @@ export default function Feed() {
           { id: 'announcements', label: 'MESSAGES',  badge: unseenIds.size },
           { id: 'documents',     label: 'POLICIES',  badge: 0 },
           { id: 'polls',         label: 'POLLS',     badge: newPollAlert ? 1 : 0 },
-          { id: 'ai-search',     label: 'ASK AI',    badge: 0 },
         ] as { id: ActiveTab; label: string; badge: number }[]).map(tab => (
           <button
             key={tab.id}
@@ -631,48 +630,111 @@ export default function Feed() {
         </>
       )}
 
-      {/* ── Documents ── */}
+      {/* ── Policies (Ask AI + Documents) ── */}
       {activeTab === 'documents' && (
         <div style={{ flex: 1, overflow: 'auto' }}>
-          {docsLoading && (
-            <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.50)', fontSize: 12, padding: '40px 0' }}>Loading…</p>
-          )}
-          {!docsLoading && documents.length === 0 && (
-            <div style={{ textAlign: 'center', padding: '40px 14px' }}>
-              <p style={{ fontSize: 28, marginBottom: 8 }}>📂</p>
-              <p style={{ color: 'rgba(255,255,255,0.80)', fontSize: 12, fontWeight: 600 }}>No documents available</p>
-              <p style={{ color: 'rgba(255,255,255,0.50)', fontSize: 11, marginTop: 4 }}>HR will upload documents here for your reference.</p>
-            </div>
-          )}
-          {documents.map(doc => (
-            <div
-              key={doc.id}
-              onClick={() => handleOpenDocument(doc)}
-              style={{ padding: '11px 14px', borderBottom: '1px solid rgba(255,255,255,0.06)', cursor: doc.file_url ? 'pointer' : 'default', display: 'flex', alignItems: 'center', gap: 10, transition: 'background 0.1s' }}
-              onMouseEnter={e => { if (doc.file_url) e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-            >
-              <span style={{ fontSize: 22, flexShrink: 0 }}>
-                {doc.file_type === 'pdf' ? '📕' : doc.file_type === 'docx' ? '📘' : '📄'}
-              </span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: '#ffffff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {doc.name}
+          {/* Ask AI section */}
+          <div style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+            {qaHistory.length === 0 && !asking && (
+              <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                <p style={{ fontSize: 28, marginBottom: 8 }}>🤖</p>
+                <p style={{ color: 'rgba(255,255,255,0.80)', fontSize: 12, fontWeight: 600 }}>Ask about company policies</p>
+                <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 11, marginTop: 4 }}>
+                  Ask about leave, payroll, benefits, conduct, and more.
+                </p>
+              </div>
+            )}
+            {qaHistory.map((qa, i) => (
+              <div key={i} style={{ marginBottom: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6 }}>
+                  <div style={{ background: theme.primaryGradient, color: 'white', borderRadius: '12px 12px 2px 12px', padding: '7px 11px', fontSize: 12, maxWidth: '85%', lineHeight: 1.4 }}>
+                    {qa.question}
+                  </div>
                 </div>
-                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.60)', marginTop: 2, display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <span style={{ textTransform: 'uppercase' }}>{doc.file_type}</span>
-                  {doc.target_level && (
-                    <span style={{ background: 'rgba(99,102,241,0.20)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.30)', borderRadius: 4, padding: '1px 6px', fontSize: 9, fontWeight: 600 }}>
-                      {doc.target_level}
-                    </span>
+                <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: '2px 12px 12px 12px', padding: '10px 12px', maxWidth: '92%' }}>
+                  {qa.error ? (
+                    <span style={{ color: '#f87171', fontSize: 12 }}>{qa.answerHtml}</span>
+                  ) : (
+                    <>
+                      <div dangerouslySetInnerHTML={{ __html: qa.answerHtml }} />
+                      {qa.sources.length > 0 && (
+                        <p style={{ margin: '8px 0 0', color: 'rgba(255,255,255,0.55)', fontSize: 10, borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 6 }}>
+                          📄 {qa.sources.join(', ')}
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
-              {doc.file_url && (
-                <span style={{ fontSize: 10, color: theme.lightAccentText, flexShrink: 0 }}>Open ↗</span>
-              )}
-            </div>
-          ))}
+            ))}
+            {asking && (
+              <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: '2px 12px 12px 12px', padding: '10px 12px', maxWidth: '92%', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ width: 12, height: 12, borderRadius: '50%', border: `2px solid ${theme.lightAccentText}`, borderTopColor: 'transparent', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
+                <span style={{ color: theme.lightAccentText, fontSize: 12 }}>Thinking…</span>
+              </div>
+            )}
+            <div ref={qaEndRef} />
+            <form onSubmit={handleAsk} style={{ marginTop: 10, display: 'flex', gap: 8 }}>
+              <input
+                type="text"
+                value={question}
+                onChange={e => setQuestion(e.target.value)}
+                placeholder="Ask about a policy…"
+                disabled={asking}
+                style={{ ...S.input, flex: 1, fontSize: 12, padding: '7px 10px' }}
+              />
+              <button
+                type="submit"
+                disabled={!question.trim() || asking}
+                style={{ ...S.primaryBtn, background: theme.primaryGradient, padding: '7px 16px', fontSize: 12, opacity: (!question.trim() || asking) ? 0.5 : 1 }}
+              >
+                Ask
+              </button>
+            </form>
+          </div>
+
+          {/* Documents section */}
+          <div>
+            {docsLoading && (
+              <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.50)', fontSize: 12, padding: '40px 0' }}>Loading…</p>
+            )}
+            {!docsLoading && documents.length === 0 && (
+              <div style={{ textAlign: 'center', padding: '40px 14px' }}>
+                <p style={{ fontSize: 28, marginBottom: 8 }}>📂</p>
+                <p style={{ color: 'rgba(255,255,255,0.80)', fontSize: 12, fontWeight: 600 }}>No documents available</p>
+                <p style={{ color: 'rgba(255,255,255,0.50)', fontSize: 11, marginTop: 4 }}>HR will upload documents here for your reference.</p>
+              </div>
+            )}
+            {documents.map(doc => (
+              <div
+                key={doc.id}
+                onClick={() => handleOpenDocument(doc)}
+                style={{ padding: '11px 14px', borderBottom: '1px solid rgba(255,255,255,0.06)', cursor: doc.file_url ? 'pointer' : 'default', display: 'flex', alignItems: 'center', gap: 10, transition: 'background 0.1s' }}
+                onMouseEnter={e => { if (doc.file_url) e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+              >
+                <span style={{ fontSize: 22, flexShrink: 0 }}>
+                  {doc.file_type === 'pdf' ? '📕' : doc.file_type === 'docx' ? '📘' : '📄'}
+                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: '#ffffff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {doc.name}
+                  </div>
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.60)', marginTop: 2, display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <span style={{ textTransform: 'uppercase' }}>{doc.file_type}</span>
+                    {doc.target_level && (
+                      <span style={{ background: 'rgba(99,102,241,0.20)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.30)', borderRadius: 4, padding: '1px 6px', fontSize: 9, fontWeight: 600 }}>
+                        {doc.target_level}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {doc.file_url && (
+                  <span style={{ fontSize: 10, color: theme.lightAccentText, flexShrink: 0 }}>Open ↗</span>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -749,73 +811,6 @@ export default function Feed() {
               </div>
             )
           })}
-        </div>
-      )}
-
-      {/* ── AI Search ── */}
-      {activeTab === 'ai-search' && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <div style={{ flex: 1, overflow: 'auto', padding: '12px 14px' }}>
-            {qaHistory.length === 0 && !asking && (
-              <div style={{ textAlign: 'center', padding: '30px 0' }}>
-                <p style={{ fontSize: 28, marginBottom: 8 }}>🤖</p>
-                <p style={{ color: 'rgba(255,255,255,0.80)', fontSize: 12, fontWeight: 600 }}>Ask about company policies</p>
-                <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 11, marginTop: 4 }}>
-                  Ask about leave, payroll, benefits, conduct, and more.
-                </p>
-              </div>
-            )}
-            {qaHistory.map((qa, i) => (
-              <div key={i} style={{ marginBottom: 16 }}>
-                {/* Question */}
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6 }}>
-                  <div style={{ background: theme.primaryGradient, color: 'white', borderRadius: '12px 12px 2px 12px', padding: '7px 11px', fontSize: 12, maxWidth: '85%', lineHeight: 1.4 }}>
-                    {qa.question}
-                  </div>
-                </div>
-                {/* Answer */}
-                <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: '2px 12px 12px 12px', padding: '10px 12px', maxWidth: '92%' }}>
-                  {qa.error ? (
-                    <span style={{ color: '#f87171', fontSize: 12 }}>{qa.answerHtml}</span>
-                  ) : (
-                    <>
-                      <div dangerouslySetInnerHTML={{ __html: qa.answerHtml }} />
-                      {qa.sources.length > 0 && (
-                        <p style={{ margin: '8px 0 0', color: 'rgba(255,255,255,0.55)', fontSize: 10, borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 6 }}>
-                          📄 {qa.sources.join(', ')}
-                        </p>
-                      )}
-                    </>
-                  )}
-                </div>
-              </div>
-            ))}
-            {asking && (
-              <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: '2px 12px 12px 12px', padding: '10px 12px', maxWidth: '92%', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ width: 12, height: 12, borderRadius: '50%', border: `2px solid ${theme.lightAccentText}`, borderTopColor: 'transparent', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
-                <span style={{ color: theme.lightAccentText, fontSize: 12 }}>Thinking…</span>
-              </div>
-            )}
-            <div ref={qaEndRef} />
-          </div>
-
-          <form onSubmit={handleAsk} style={{ padding: '8px 12px', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', gap: 8, flexShrink: 0 }}>
-            <input
-              type="text"
-              value={question}
-              onChange={e => setQuestion(e.target.value)}
-              placeholder="Ask about a policy…"
-              disabled={asking}
-              style={{ ...S.input, flex: 1, fontSize: 12, padding: '7px 10px' }}
-            />
-            <button
-              type="submit"
-              disabled={!question.trim() || asking}
-              style={{ ...S.primaryBtn, background: theme.primaryGradient, padding: '7px 16px', fontSize: 12, opacity: (!question.trim() || asking) ? 0.5 : 1 }}
-            >
-              Ask
-            </button>
-          </form>
         </div>
       )}
 
