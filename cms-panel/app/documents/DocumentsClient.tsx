@@ -344,8 +344,8 @@ export default function DocumentsClient({ initialDocuments, levels, companies }:
                 disabled={!editName.trim() || !editCompany || editSaving}
                 className="px-4 py-2 text-sm font-semibold text-white rounded-xl transition-all"
                 style={{
-                  background: (!editName.trim() || editSaving) ? 'rgba(255,255,255,0.10)' : 'linear-gradient(135deg, #0d9488, #0891b2)',
-                  cursor: (!editName.trim() || editSaving) ? 'not-allowed' : 'pointer',
+                  background: (!editName.trim() || !editCompany || editSaving) ? 'rgba(255,255,255,0.10)' : 'linear-gradient(135deg, #0d9488, #0891b2)',
+                  cursor: (!editName.trim() || !editCompany || editSaving) ? 'not-allowed' : 'pointer',
                 }}
               >
                 {editSaving ? 'Saving…' : 'Save'}
