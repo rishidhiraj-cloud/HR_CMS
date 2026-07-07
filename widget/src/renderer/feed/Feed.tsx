@@ -5,6 +5,8 @@ import { getTheme, rgba } from '../theme'
 import modicareLogoUrl from '../assets/MCLogo.png'
 // @ts-ignore
 import kiteLogoUrl from '../assets/icon.png'
+// @ts-ignore
+import colorbarLogoUrl from '../assets/ColorbarLogo.jpeg'
 
 const APP_VERSION = '1.0.11'
 
@@ -422,12 +424,19 @@ export default function Feed() {
 
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 28px 24px', position: 'relative', zIndex: 1, gap: 0 }}>
 
-          {/* Kite logo */}
-          <img
-            src={kiteLogoUrl}
-            alt="M-Connect"
-            style={{ width: 88, height: 88, objectFit: 'contain', marginBottom: 16, filter: 'drop-shadow(0 8px 24px rgba(0,120,210,0.35))' }}
-          />
+          {/* Company logos */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+            <img
+              src={kiteLogoUrl}
+              alt="Modicare"
+              style={{ width: 88, height: 88, objectFit: 'contain', filter: 'drop-shadow(0 8px 24px rgba(0,120,210,0.35))' }}
+            />
+            <img
+              src={colorbarLogoUrl}
+              alt="Colorbar"
+              style={{ width: 88, height: 88, objectFit: 'contain', borderRadius: 16, filter: 'drop-shadow(0 8px 24px rgba(0,120,210,0.35))' }}
+            />
+          </div>
 
           {/* App name */}
           <p style={{ color: '#ffffff', fontWeight: 700, fontSize: 20, margin: '0 0 3px', letterSpacing: '-0.4px' }}>M-Connect</p>
@@ -518,7 +527,11 @@ export default function Feed() {
 
       {/* Header */}
       <div style={HEADER_STYLE}>
-        <div style={{ width: 30, height: 30, borderRadius: 8, background: theme.badgeGradient, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: 'white', flexShrink: 0, letterSpacing: '0.2px' }}>MC</div>
+        <img
+          src={employee.company === 'Colorbar Cosmetics' ? colorbarLogoUrl : kiteLogoUrl}
+          alt={employee.company}
+          style={{ width: 30, height: 30, borderRadius: 8, objectFit: 'contain', flexShrink: 0 }}
+        />
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.55)', fontWeight: 600, letterSpacing: '0.6px', textTransform: 'uppercase', lineHeight: 1 }}>M-Connect</div>
           <div style={{ fontWeight: 600, fontSize: 12, color: '#ffffff', marginTop: 1 }}>Hi, {employee.name.split(' ')[0]} 👋</div>
