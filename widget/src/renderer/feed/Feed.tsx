@@ -440,11 +440,11 @@ export default function Feed() {
 
           {/* App name */}
           <p style={{ color: '#ffffff', fontWeight: 700, fontSize: 20, margin: '0 0 3px', letterSpacing: '-0.4px' }}>M-Connect</p>
-          <p style={{ color: 'rgba(255,255,255,0.40)', fontSize: 10, margin: '0 0 30px', letterSpacing: '1.2px', textTransform: 'uppercase' }}>Modicare Employee Hub</p>
+          <p style={{ color: 'rgba(255,255,255,0.40)', fontSize: 10, margin: '0 0 30px', letterSpacing: '1.2px', textTransform: 'uppercase' }}>Modi Enterprises Employee Hub</p>
 
           {/* Welcome text */}
           <p style={{ color: 'rgba(255,255,255,0.88)', fontSize: 13, fontWeight: 600, margin: '0 0 6px', textAlign: 'center' }}>Welcome back</p>
-          <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11, margin: '0 0 22px', textAlign: 'center', lineHeight: 1.55 }}>Sign in with your Modicare corporate account</p>
+          <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11, margin: '0 0 22px', textAlign: 'center', lineHeight: 1.55 }}>Sign in with your corporate account</p>
 
           {/* Microsoft SSO button */}
           <button
