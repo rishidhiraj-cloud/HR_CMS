@@ -12,6 +12,7 @@ interface PolicyDocument {
   uploaded_at: string
   target_level: string | null
   file_url: string | null
+  company: string
 }
 
 interface Level {
@@ -19,9 +20,15 @@ interface Level {
   name: string
 }
 
+interface Company {
+  id: string
+  name: string
+}
+
 interface Props {
   initialDocuments: PolicyDocument[]
   levels: Level[]
+  companies: Company[]
 }
 
 const statusStyle: Record<string, { bg: string; color: string; border: string }> = {
@@ -48,7 +55,7 @@ const inputStyle = {
   width: '100%',
 } as React.CSSProperties
 
-export default function DocumentsClient({ initialDocuments, levels }: Props) {
+export default function DocumentsClient({ initialDocuments, levels, companies }: Props) {
   const [documents, setDocuments] = useState<PolicyDocument[]>(initialDocuments)
 
   // Filters
@@ -59,6 +66,7 @@ export default function DocumentsClient({ initialDocuments, levels }: Props) {
   const [editDoc, setEditDoc] = useState<PolicyDocument | null>(null)
   const [editName, setEditName] = useState('')
   const [editLevel, setEditLevel] = useState('')
+  const [editCompany, setEditCompany] = useState('')
   const [editSaving, setEditSaving] = useState(false)
   const [editError, setEditError] = useState('')
 
@@ -77,25 +85,26 @@ export default function DocumentsClient({ initialDocuments, levels }: Props) {
     setEditDoc(doc)
     setEditName(doc.name)
     setEditLevel(doc.target_level ?? '')
+    setEditCompany(doc.company)
     setEditError('')
   }
 
   async function handleSaveEdit() {
-    if (!editDoc || !editName.trim()) return
+    if (!editDoc || !editName.trim() || !editCompany) return
     setEditSaving(true)
     setEditError('')
     try {
       const res = await fetch(`/api/documents/${editDoc.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: editName.trim(), target_level: editLevel || null }),
+        body: JSON.stringify({ name: editName.trim(), target_level: editLevel || null, company: editCompany }),
       })
       if (!res.ok) {
         const j = await res.json()
         throw new Error(j.error ?? 'Save failed')
       }
       setDocuments(prev => prev.map(d =>
-        d.id === editDoc.id ? { ...d, name: editName.trim(), target_level: editLevel || null } : d
+        d.id === editDoc.id ? { ...d, name: editName.trim(), target_level: editLevel || null, company: editCompany } : d
       ))
       setEditDoc(null)
     } catch (err) {
@@ -286,6 +295,21 @@ export default function DocumentsClient({ initialDocuments, levels }: Props) {
             </div>
 
             <div>
+              <label className="block text-sm font-medium mb-1.5" style={{ color: 'rgba(255,255,255,0.70)' }}>Company</label>
+              <select
+                value={editCompany}
+                onChange={e => setEditCompany(e.target.value)}
+                style={{ ...inputStyle, cursor: 'pointer' }}
+                onFocus={e => { e.target.style.border = '1px solid rgba(13,148,136,0.60)' }}
+                onBlur={e => { e.target.style.border = '1px solid rgba(255,255,255,0.14)' }}
+              >
+                {companies.map(c => (
+                  <option key={c.id} value={c.name}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
               <label className="block text-sm font-medium mb-1.5" style={{ color: 'rgba(255,255,255,0.70)' }}>Visible To</label>
               <select
                 value={editLevel}
@@ -317,7 +341,7 @@ export default function DocumentsClient({ initialDocuments, levels }: Props) {
               </button>
               <button
                 onClick={handleSaveEdit}
-                disabled={!editName.trim() || editSaving}
+                disabled={!editName.trim() || !editCompany || editSaving}
                 className="px-4 py-2 text-sm font-semibold text-white rounded-xl transition-all"
                 style={{
                   background: (!editName.trim() || editSaving) ? 'rgba(255,255,255,0.10)' : 'linear-gradient(135deg, #0d9488, #0891b2)',

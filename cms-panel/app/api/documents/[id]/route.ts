@@ -26,11 +26,12 @@ export async function PATCH(
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
-  const body = await req.json() as { name?: string; target_level?: string | null }
+  const body = await req.json() as { name?: string; target_level?: string | null; company?: string }
 
   const update: Record<string, string | null> = {}
   if (body.name !== undefined) update.name = body.name.trim()
   if (body.target_level !== undefined) update.target_level = body.target_level || null
+  if (body.company !== undefined) update.company = body.company
 
   const { error } = await svc().from('policy_documents').update(update).eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
