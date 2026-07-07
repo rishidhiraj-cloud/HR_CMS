@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react'
-import type { Employee, Message, HrDocument, Poll } from '../../shared/types'
+import type { Employee, Message, HrDocument, Poll, QuickLink } from '../../shared/types'
 import { getTheme, rgba } from '../theme'
 // @ts-ignore
 import modicareLogoUrl from '../assets/MCLogo.png'
@@ -8,7 +8,7 @@ import kiteLogoUrl from '../assets/icon.png'
 
 const APP_VERSION = '1.0.11'
 
-type ActiveTab = 'announcements' | 'documents' | 'polls'
+type ActiveTab = 'announcements' | 'documents' | 'polls' | 'quick-links'
 
 interface QA {
   question: string
@@ -176,6 +176,12 @@ export default function Feed() {
   const [votingId, setVotingId] = useState<string | null>(null)
   const [newPollAlert, setNewPollAlert] = useState(false)
 
+  const [quickLinks, setQuickLinks] = useState<QuickLink[]>([])
+  const [quickLinksLoading, setQuickLinksLoading] = useState(false)
+  const [quickLinksLoaded, setQuickLinksLoaded] = useState(false)
+  const [openInfoId, setOpenInfoId] = useState<string | null>(null)
+  const [copiedButton, setCopiedButton] = useState<string | null>(null)
+
   const theme = getTheme(employee?.company)
 
   useEffect(() => {
@@ -253,9 +259,19 @@ export default function Feed() {
     setPollsLoading(false)
   }
 
+  async function loadQuickLinks() {
+    if (quickLinksLoaded || quickLinksLoading) return
+    setQuickLinksLoading(true)
+    const links = await window.hrWidget.getQuickLinks()
+    setQuickLinks(links)
+    setQuickLinksLoaded(true)
+    setQuickLinksLoading(false)
+  }
+
   function handleTabChange(tab: ActiveTab) {
     setActiveTab(tab)
     if (tab === 'documents') loadDocuments()
+    if (tab === 'quick-links') loadQuickLinks()
     if (tab === 'polls') {
       setNewPollAlert(false)
       window.hrWidget.clearPollBadge()
@@ -351,6 +367,19 @@ export default function Feed() {
     if (!doc.file_url) return
     window.hrWidget.logDocumentAccess(doc.id)
     await window.hrWidget.openDocumentUrl(doc.file_url)
+  }
+
+  async function handleOpenQuickLink(url: string) {
+    await window.hrWidget.openQuickLinkUrl(url)
+  }
+
+  async function handleCopyQuickLink(link: QuickLink, platform: 'android' | 'ios') {
+    const url = platform === 'android' ? link.android_app_url : link.ios_app_url
+    if (!url) return
+    await window.hrWidget.copyToClipboard(url)
+    const key = `${link.id}-${platform}`
+    setCopiedButton(key)
+    setTimeout(() => setCopiedButton(prev => (prev === key ? null : prev)), 1500)
   }
 
   // Loading
@@ -544,9 +573,10 @@ export default function Feed() {
       {/* Tab bar */}
       <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
         {([
-          { id: 'announcements', label: 'MESSAGES',  badge: unseenIds.size },
-          { id: 'documents',     label: 'POLICIES',  badge: 0 },
-          { id: 'polls',         label: 'POLLS',     badge: newPollAlert ? 1 : 0 },
+          { id: 'announcements', label: 'MESSAGES',     badge: unseenIds.size },
+          { id: 'documents',     label: 'POLICIES',     badge: 0 },
+          { id: 'polls',         label: 'POLLS',        badge: newPollAlert ? 1 : 0 },
+          { id: 'quick-links',   label: 'QUICK LINKS',  badge: 0 },
         ] as { id: ActiveTab; label: string; badge: number }[]).map(tab => (
           <button
             key={tab.id}
@@ -735,6 +765,77 @@ export default function Feed() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* ── Quick Links ── */}
+      {activeTab === 'quick-links' && (
+        <div style={{ flex: 1, overflow: 'auto', padding: '10px 12px' }}>
+          {quickLinksLoading && (
+            <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.50)', fontSize: 12, padding: '40px 0' }}>Loading…</p>
+          )}
+          {!quickLinksLoading && quickLinks.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '40px 14px' }}>
+              <p style={{ fontSize: 28, marginBottom: 8 }}>🔗</p>
+              <p style={{ color: 'rgba(255,255,255,0.80)', fontSize: 12, fontWeight: 600 }}>No quick links yet</p>
+              <p style={{ color: 'rgba(255,255,255,0.50)', fontSize: 11, marginTop: 4 }}>HR will add portals and apps here.</p>
+            </div>
+          )}
+          {quickLinks.map(link => (
+            <div key={link.id} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 12, padding: '12px 14px', marginBottom: 10, position: 'relative' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#ffffff' }}>{link.portal_name}</span>
+                    <span style={{ fontSize: 9.5, fontWeight: 600, padding: '1px 7px', borderRadius: 999, background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.55)' }}>
+                      {link.type === 'website' ? 'Website' : 'Mobile App'}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>{link.purpose}</div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                  <button
+                    onClick={() => setOpenInfoId(prev => prev === link.id ? null : link.id)}
+                    style={{ width: 20, height: 20, borderRadius: '50%', background: rgba(theme.primary, 0.20), color: theme.lightAccentText, border: `1px solid ${rgba(theme.primary, 0.35)}`, fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                  >
+                    i
+                  </button>
+                  {link.type === 'website' && link.url && (
+                    <button
+                      onClick={() => handleOpenQuickLink(link.url!)}
+                      style={{ background: theme.primaryGradient, color: 'white', border: 'none', borderRadius: 8, padding: '6px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                    >
+                      Open ↗
+                    </button>
+                  )}
+                  {link.type === 'mobile_app' && link.android_app_url && (
+                    <button
+                      onClick={() => handleCopyQuickLink(link, 'android')}
+                      style={{ background: 'rgba(255,255,255,0.08)', color: '#ffffff', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 8, padding: '6px 10px', fontSize: 10.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                    >
+                      {copiedButton === `${link.id}-android` ? 'Copied!' : '📋 Copy Android link'}
+                    </button>
+                  )}
+                  {link.type === 'mobile_app' && link.ios_app_url && (
+                    <button
+                      onClick={() => handleCopyQuickLink(link, 'ios')}
+                      style={{ background: 'rgba(255,255,255,0.08)', color: '#ffffff', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 8, padding: '6px 10px', fontSize: 10.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                    >
+                      {copiedButton === `${link.id}-ios` ? 'Copied!' : '📋 Copy iOS link'}
+                    </button>
+                  )}
+                </div>
+              </div>
+              {openInfoId === link.id && (
+                <div style={{ position: 'absolute', top: 40, right: 14, width: 220, background: '#10202a', border: `1px solid ${rgba(theme.primary, 0.35)}`, borderRadius: 12, padding: '12px 14px', boxShadow: '0 8px 24px rgba(0,0,0,0.4)', zIndex: 5 }}>
+                  <div style={{ color: theme.lightAccentText, fontWeight: 700, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>Purpose</div>
+                  <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11.5, marginBottom: 10 }}>{link.purpose}</div>
+                  <div style={{ color: theme.lightAccentText, fontWeight: 700, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>How to Use</div>
+                  <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11.5 }}>{link.how_to_use}</div>
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       )}
 
