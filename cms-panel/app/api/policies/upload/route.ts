@@ -38,9 +38,10 @@ export async function POST(req: NextRequest) {
   const name = (formData.get('name') as string | null)?.trim()
   const levelRaw = (formData.get('level') as string | null)?.trim()
   const targetLevel = levelRaw || null
+  const company = (formData.get('company') as string | null)?.trim()
 
-  if (!file || !name) {
-    return NextResponse.json({ error: 'File and name are required' }, { status: 400 })
+  if (!file || !name || !company) {
+    return NextResponse.json({ error: 'File, name, and company are required' }, { status: 400 })
   }
 
   const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
@@ -70,7 +71,7 @@ export async function POST(req: NextRequest) {
   // Insert document record first to get the ID
   const { data: doc, error: docErr } = await svc
     .from('policy_documents')
-    .insert({ name, file_type: ext, status: 'processing', uploaded_by: user.id, target_level: targetLevel })
+    .insert({ name, file_type: ext, status: 'processing', uploaded_by: user.id, target_level: targetLevel, company })
     .select()
     .single()
 

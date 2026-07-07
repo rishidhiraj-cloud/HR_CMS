@@ -14,11 +14,18 @@ interface Level {
   name: string
 }
 
+interface Company {
+  id: string
+  name: string
+}
+
 export default function UploadDocumentPage() {
   const [file, setFile] = useState<File | null>(null)
   const [name, setName] = useState('')
   const [level, setLevel] = useState<string>('')
   const [levels, setLevels] = useState<Level[]>([])
+  const [company, setCompany] = useState<string>('')
+  const [companies, setCompanies] = useState<Company[]>([])
   const [state, setState] = useState<UploadState>('idle')
   const [error, setError] = useState('')
   const [result, setResult] = useState<{ chunks: number } | null>(null)
@@ -30,6 +37,11 @@ export default function UploadDocumentPage() {
       .select('id, name')
       .order('name')
       .then(({ data }: { data: Level[] | null }) => { if (data) setLevels(data) })
+    getBrowserClient()
+      .from('companies')
+      .select('id, name')
+      .order('name')
+      .then(({ data }: { data: Company[] | null }) => { if (data) setCompanies(data) })
   }, [])
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -53,6 +65,7 @@ export default function UploadDocumentPage() {
       formData.append('file', file)
       formData.append('name', name.trim())
       formData.append('level', level)
+      formData.append('company', company)
       setState('processing')
       const res = await fetch('/api/policies/upload', { method: 'POST', body: formData })
       const json = await res.json()
@@ -110,7 +123,7 @@ export default function UploadDocumentPage() {
             </p>
             <div className="mt-6 flex gap-3 justify-center">
               <button
-                onClick={() => { setFile(null); setName(''); setLevel(''); setState('idle'); setResult(null); if (inputRef.current) inputRef.current.value = '' }}
+                onClick={() => { setFile(null); setName(''); setLevel(''); setCompany(''); setState('idle'); setResult(null); if (inputRef.current) inputRef.current.value = '' }}
                 className="px-4 py-2 text-sm font-medium rounded-xl transition-all"
                 style={{ background: 'rgba(255,255,255,0.10)', color: '#5eead4', border: '1px solid rgba(13,148,136,0.30)' }}
               >
@@ -173,6 +186,28 @@ export default function UploadDocumentPage() {
               <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.35)' }}>Shown to employees as the source of answers.</p>
             </div>
 
+            {/* Company */}
+            <div>
+              <label className="block text-sm font-medium mb-1.5" style={{ color: 'rgba(255,255,255,0.70)' }}>Company *</label>
+              <select
+                value={company}
+                onChange={e => setCompany(e.target.value)}
+                required
+                className="w-full rounded-xl px-4 py-2.5 text-sm text-white outline-none transition-all appearance-none cursor-pointer"
+                style={{ ...inputStyle, backgroundImage: 'none' }}
+                onFocus={e => { e.target.style.border = '1px solid rgba(13,148,136,0.60)' }}
+                onBlur={e => { e.target.style.border = '1px solid rgba(255,255,255,0.14)' }}
+              >
+                <option value="" disabled>Select a company…</option>
+                {companies.map(c => (
+                  <option key={c.id} value={c.name}>{c.name}</option>
+                ))}
+              </select>
+              <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                Only employees of this company will be able to see this document or get answers from it.
+              </p>
+            </div>
+
             {/* Level */}
             <div>
               <label className="block text-sm font-medium mb-1.5" style={{ color: 'rgba(255,255,255,0.70)' }}>Visible To</label>
@@ -211,12 +246,12 @@ export default function UploadDocumentPage() {
 
             <button
               type="submit"
-              disabled={!file || !name.trim() || busy}
+              disabled={!file || !name.trim() || !company || busy}
               className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all flex items-center justify-center gap-2"
               style={{
-                background: (!file || !name.trim() || busy) ? 'rgba(255,255,255,0.10)' : 'linear-gradient(135deg, #0d9488, #0891b2)',
-                boxShadow: (!file || !name.trim() || busy) ? 'none' : '0 4px 14px rgba(13,148,136,0.30)',
-                cursor: (!file || !name.trim() || busy) ? 'not-allowed' : 'pointer',
+                background: (!file || !name.trim() || !company || busy) ? 'rgba(255,255,255,0.10)' : 'linear-gradient(135deg, #0d9488, #0891b2)',
+                boxShadow: (!file || !name.trim() || !company || busy) ? 'none' : '0 4px 14px rgba(13,148,136,0.30)',
+                cursor: (!file || !name.trim() || !company || busy) ? 'not-allowed' : 'pointer',
               }}
             >
               {busy ? (
