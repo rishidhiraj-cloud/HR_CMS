@@ -180,6 +180,7 @@ export default function Feed() {
   const [quickLinksLoading, setQuickLinksLoading] = useState(false)
   const [quickLinksLoaded, setQuickLinksLoaded] = useState(false)
   const [openInfoId, setOpenInfoId] = useState<string | null>(null)
+  const infoPopoverRef = useRef<HTMLDivElement>(null)
   const [copiedButton, setCopiedButton] = useState<string | null>(null)
 
   const theme = getTheme(employee?.company)
@@ -240,6 +241,19 @@ export default function Feed() {
   useEffect(() => {
     qaEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [qaHistory, asking])
+
+  useEffect(() => {
+    if (!openInfoId) return
+    function handleClickOutside(e: MouseEvent) {
+      const target = e.target as HTMLElement
+      if (target.closest('[data-quicklink-info-toggle]')) return
+      if (infoPopoverRef.current && !infoPopoverRef.current.contains(target)) {
+        setOpenInfoId(null)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [openInfoId])
 
   async function loadDocuments() {
     if (docsLoaded || docsLoading) return
@@ -795,6 +809,7 @@ export default function Feed() {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                   <button
+                    data-quicklink-info-toggle
                     onClick={() => setOpenInfoId(prev => prev === link.id ? null : link.id)}
                     style={{ width: 20, height: 20, borderRadius: '50%', background: rgba(theme.primary, 0.20), color: theme.lightAccentText, border: `1px solid ${rgba(theme.primary, 0.35)}`, fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
                   >
@@ -827,7 +842,7 @@ export default function Feed() {
                 </div>
               </div>
               {openInfoId === link.id && (
-                <div style={{ position: 'absolute', top: 40, right: 14, width: 220, background: '#10202a', border: `1px solid ${rgba(theme.primary, 0.35)}`, borderRadius: 12, padding: '12px 14px', boxShadow: '0 8px 24px rgba(0,0,0,0.4)', zIndex: 5 }}>
+                <div ref={infoPopoverRef} style={{ position: 'absolute', top: 40, right: 14, width: 220, background: '#10202a', border: `1px solid ${rgba(theme.primary, 0.35)}`, borderRadius: 12, padding: '12px 14px', boxShadow: '0 8px 24px rgba(0,0,0,0.4)', zIndex: 5 }}>
                   <div style={{ color: theme.lightAccentText, fontWeight: 700, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>Purpose</div>
                   <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11.5, marginBottom: 10 }}>{link.purpose}</div>
                   <div style={{ color: theme.lightAccentText, fontWeight: 700, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>How to Use</div>
