@@ -17,10 +17,6 @@ export async function POST(req: NextRequest) {
   const authHeader = req.headers.get('authorization')
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null
 
-  if (!token) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
   const { question } = await req.json() as { question?: string }
   if (!question?.trim()) {
     return NextResponse.json({ error: 'No question provided' }, { status: 400 })
@@ -31,15 +27,28 @@ export async function POST(req: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  const { data: { user }, error: userErr } = await svc.auth.getUser(token)
-  if (userErr || !user) {
-    return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
-  }
+  let userId: string
+  let employeeLevel: string | null = null
+  let employeeCompany: string | null = null
 
-  // Get the employee's role for level-based document filtering.
-  // HR users won't be in the employees table — they get null (sees all docs).
-  const { data: emp } = await svc.from('employees').select('role').eq('id', user.id).single()
-  const employeeLevel: string | null = emp?.role ?? null
+  if (token) {
+    const { data: { user }, error: userErr } = await svc.auth.getUser(token)
+    if (userErr || !user) return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
+    userId = user.id
+    // Get the employee's role/company for level- and company-based document filtering.
+    // HR users won't be in the employees table — they get null (sees all docs).
+    const { data: emp } = await svc.from('employees').select('role, company').eq('id', userId).single()
+    employeeLevel = emp?.role ?? null
+    employeeCompany = emp?.company ?? null
+  } else {
+    const headerEmpId = req.headers.get('x-employee-id')
+    if (!headerEmpId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const { data: emp } = await svc.from('employees').select('id, role, company').eq('id', headerEmpId).single()
+    if (!emp) return NextResponse.json({ error: 'Invalid employee' }, { status: 401 })
+    userId = emp.id
+    employeeLevel = emp.role ?? null
+    employeeCompany = emp.company ?? null
+  }
 
   let questionEmbedding: number[]
   try {
@@ -53,6 +62,7 @@ export async function POST(req: NextRequest) {
     query_embedding: JSON.stringify(questionEmbedding),
     match_count: 5,
     employee_level: employeeLevel,
+    employee_company: employeeCompany,
   })
 
   if (searchErr) {
@@ -94,7 +104,7 @@ No relevant policy documents were found for this question. Politely tell the emp
 
   // Log query for analytics (fire-and-forget)
   svc.from('search_logs').insert({
-    user_id: user.id,
+    user_id: userId,
     query: question.trim(),
     result_count: chunks.length,
   }).then(() => {})
