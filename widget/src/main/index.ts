@@ -98,7 +98,11 @@ function handleRealtimePoll(payload: { new: Record<string, unknown> }) {
   const poll = payload.new
   if (poll.status !== 'active') return
   if (!currentEmployee) return
-  if (poll.target_type !== 'all' && !(poll.target_type === 'level' && poll.target_value === currentEmployee.role)) return
+  if (
+    poll.target_type !== 'all' &&
+    !(poll.target_type === 'level' && poll.target_value === currentEmployee.role) &&
+    !(poll.target_type === 'company' && poll.target_value === currentEmployee.company)
+  ) return
   if (notifiedPollIds.has(poll.id as string)) return
 
   notifiedPollIds.add(poll.id as string)

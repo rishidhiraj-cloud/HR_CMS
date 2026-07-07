@@ -15,6 +15,7 @@ export async function GET(req: NextRequest) {
   const admin = svc()
   let employeeId: string
   let employeeRole: string | null = null
+  let employeeCompany: string | null = null
 
   const token = req.headers.get('authorization')?.startsWith('Bearer ')
     ? req.headers.get('authorization')!.slice(7)
@@ -24,15 +25,17 @@ export async function GET(req: NextRequest) {
     const { data: { user }, error: userErr } = await admin.auth.getUser(token)
     if (userErr || !user) return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
     employeeId = user.id
-    const { data: emp } = await admin.from('employees').select('role').eq('id', employeeId).single()
+    const { data: emp } = await admin.from('employees').select('role, company').eq('id', employeeId).single()
     employeeRole = emp?.role ?? null
+    employeeCompany = emp?.company ?? null
   } else {
     const headerEmpId = req.headers.get('x-employee-id')
     if (!headerEmpId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    const { data: emp } = await admin.from('employees').select('id, role').eq('id', headerEmpId).single()
+    const { data: emp } = await admin.from('employees').select('id, role, company').eq('id', headerEmpId).single()
     if (!emp) return NextResponse.json({ error: 'Invalid employee' }, { status: 401 })
     employeeId = emp.id
     employeeRole = emp.role ?? null
+    employeeCompany = emp.company ?? null
   }
 
   const { data: polls, error } = await admin
@@ -45,7 +48,8 @@ export async function GET(req: NextRequest) {
 
   const filtered = (polls ?? []).filter((p: Record<string, unknown>) =>
     p.target_type === 'all' ||
-    (p.target_type === 'level' && p.target_value === employeeRole)
+    (p.target_type === 'level' && p.target_value === employeeRole) ||
+    (p.target_type === 'company' && p.target_value === employeeCompany)
   )
 
   const result = await Promise.all(filtered.map(async (poll: Record<string, unknown>) => {
