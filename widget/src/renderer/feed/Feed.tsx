@@ -8,7 +8,7 @@ import kiteLogoUrl from '../assets/icon.png'
 // @ts-ignore
 import colorbarLogoUrl from '../assets/ColorbarLogo.jpeg'
 
-const APP_VERSION = '1.0.11'
+const APP_VERSION = '1.0.12'
 
 type ActiveTab = 'announcements' | 'documents' | 'polls' | 'quick-links'
 
