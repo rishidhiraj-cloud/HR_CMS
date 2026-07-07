@@ -180,7 +180,6 @@ export default function Feed() {
 
   const [quickLinks, setQuickLinks] = useState<QuickLink[]>([])
   const [quickLinksLoading, setQuickLinksLoading] = useState(false)
-  const [quickLinksLoaded, setQuickLinksLoaded] = useState(false)
   const [openInfoId, setOpenInfoId] = useState<string | null>(null)
   const infoPopoverRef = useRef<HTMLDivElement>(null)
   const [copiedButton, setCopiedButton] = useState<string | null>(null)
@@ -276,11 +275,10 @@ export default function Feed() {
   }
 
   async function loadQuickLinks() {
-    if (quickLinksLoaded || quickLinksLoading) return
+    if (quickLinksLoading) return
     setQuickLinksLoading(true)
     const links = await window.hrWidget.getQuickLinks()
     setQuickLinks(links)
-    setQuickLinksLoaded(true)
     setQuickLinksLoading(false)
   }
 
