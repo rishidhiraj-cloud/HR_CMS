@@ -28,6 +28,7 @@ export interface HrDocument {
   file_type: string
   file_url: string | null
   target_level: string | null
+  company: string
 }
 
 export interface Poll {
