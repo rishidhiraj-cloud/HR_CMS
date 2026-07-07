@@ -813,9 +813,13 @@ export default function Feed() {
                   <div>
                     <span style={{ fontSize: 13, fontWeight: 700, color: '#ffffff' }}>{link.portal_name}</span>
                     {' '}
-                    <span style={{ display: 'inline-block', fontSize: 9.5, fontWeight: 600, padding: '1px 7px', borderRadius: 999, background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.55)' }}>
-                      {link.type === 'website' ? 'Website' : 'Mobile App'}
-                    </span>
+                    {link.type === 'website' ? (
+                      <span style={{ display: 'inline-block', fontSize: 9.5, fontWeight: 600, padding: '1px 7px', borderRadius: 999, background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.55)' }}>
+                        Website
+                      </span>
+                    ) : (
+                      <span title="Mobile App" style={{ fontSize: 12 }}>📱</span>
+                    )}
                   </div>
                   <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>{link.purpose}</div>
                 </div>
@@ -840,7 +844,7 @@ export default function Feed() {
                       onClick={() => handleCopyQuickLink(link, 'android')}
                       style={{ background: 'rgba(255,255,255,0.08)', color: '#ffffff', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 8, padding: '6px 10px', fontSize: 10.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
                     >
-                      {copiedButton === `${link.id}-android` ? 'Copied!' : '📋 Copy Android link'}
+                      {copiedButton === `${link.id}-android` ? 'Copied!' : '📋 Android link'}
                     </button>
                   )}
                   {link.type === 'mobile_app' && link.ios_app_url && (
@@ -848,7 +852,7 @@ export default function Feed() {
                       onClick={() => handleCopyQuickLink(link, 'ios')}
                       style={{ background: 'rgba(255,255,255,0.08)', color: '#ffffff', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 8, padding: '6px 10px', fontSize: 10.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
                     >
-                      {copiedButton === `${link.id}-ios` ? 'Copied!' : '📋 Copy iOS link'}
+                      {copiedButton === `${link.id}-ios` ? 'Copied!' : '📋 iOS link'}
                     </button>
                   )}
                 </div>
