@@ -429,7 +429,7 @@ export default function Feed() {
             <img
               src={kiteLogoUrl}
               alt="Modicare"
-              style={{ width: 88, height: 88, objectFit: 'contain', filter: 'drop-shadow(0 8px 24px rgba(0,120,210,0.35))' }}
+              style={{ width: 88, height: 88, objectFit: 'contain', borderRadius: 16, filter: 'drop-shadow(0 8px 24px rgba(0,120,210,0.35))' }}
             />
             <img
               src={colorbarLogoUrl}
