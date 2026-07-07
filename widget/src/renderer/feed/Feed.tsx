@@ -810,9 +810,10 @@ export default function Feed() {
             <div key={link.id} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 12, padding: '12px 14px', marginBottom: 10, position: 'relative' }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div>
                     <span style={{ fontSize: 13, fontWeight: 700, color: '#ffffff' }}>{link.portal_name}</span>
-                    <span style={{ fontSize: 9.5, fontWeight: 600, padding: '1px 7px', borderRadius: 999, background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.55)' }}>
+                    {' '}
+                    <span style={{ display: 'inline-block', fontSize: 9.5, fontWeight: 600, padding: '1px 7px', borderRadius: 999, background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.55)' }}>
                       {link.type === 'website' ? 'Website' : 'Mobile App'}
                     </span>
                   </div>
