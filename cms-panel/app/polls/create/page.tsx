@@ -7,6 +7,7 @@ import { getBrowserClient } from '@/lib/supabase-browser'
 import AppLayout from '@/components/AppLayout'
 
 interface Level { id: string; name: string }
+interface Company { id: string; name: string }
 
 const inputStyle: React.CSSProperties = {
   background: 'rgba(255,255,255,0.08)',
@@ -30,10 +31,11 @@ const glassCard: React.CSSProperties = {
 export default function CreatePollPage() {
   const router = useRouter()
   const [levels, setLevels] = useState<Level[]>([])
+  const [companies, setCompanies] = useState<Company[]>([])
   const [question, setQuestion] = useState('')
   const [pollType, setPollType] = useState<'yes_no' | 'mcq'>('yes_no')
   const [options, setOptions] = useState(['Yes', 'No'])
-  const [targetType, setTargetType] = useState<'all' | 'level'>('all')
+  const [targetType, setTargetType] = useState<'all' | 'level' | 'company'>('all')
   const [targetValue, setTargetValue] = useState('')
   const [expiresAt, setExpiresAt] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -42,6 +44,8 @@ export default function CreatePollPage() {
   useEffect(() => {
     getBrowserClient().from('levels').select('id, name').order('name')
       .then(({ data }: { data: Level[] | null }) => { if (data) setLevels(data) })
+    getBrowserClient().from('companies').select('id, name').order('name')
+      .then(({ data }: { data: Company[] | null }) => { if (data) setCompanies(data) })
   }, [])
 
   function handleTypeChange(type: 'yes_no' | 'mcq') {
@@ -75,7 +79,7 @@ export default function CreatePollPage() {
         options,
         poll_type: pollType,
         target_type: targetType,
-        target_value: targetType === 'level' ? targetValue : null,
+        target_value: targetType !== 'all' ? targetValue : null,
         expires_at: expiresAt || null,
       }),
     })
@@ -167,13 +171,13 @@ export default function CreatePollPage() {
             <div className="mb-5">
               <label className="block text-sm font-medium mb-2" style={{ color: 'rgba(255,255,255,0.70)' }}>Audience</label>
               <div className="flex gap-3 mb-3">
-                {(['all', 'level'] as const).map(t => (
+                {(['all', 'level', 'company'] as const).map(t => (
                   <button key={t} type="button" onClick={() => setTargetType(t)}
                     className="flex-1 py-2 rounded-xl text-sm font-medium transition-all"
                     style={targetType === t
                       ? { background: 'rgba(13,148,136,0.25)', color: '#5eead4', border: '1px solid rgba(13,148,136,0.40)' }
                       : { background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.55)', border: '1px solid rgba(255,255,255,0.10)' }}>
-                    {t === 'all' ? '👥 All Employees' : '🎯 Specific Level'}
+                    {t === 'all' ? '👥 All Employees' : t === 'level' ? '🎯 Specific Level' : '🏢 By Company'}
                   </button>
                 ))}
               </div>
@@ -182,6 +186,13 @@ export default function CreatePollPage() {
                   className="appearance-none" style={inputStyle}>
                   <option value="">Select level…</option>
                   {levels.map(l => <option key={l.id} value={l.name}>{l.name}</option>)}
+                </select>
+              )}
+              {targetType === 'company' && (
+                <select value={targetValue} onChange={e => setTargetValue(e.target.value)} required
+                  className="appearance-none" style={inputStyle}>
+                  <option value="">Select company…</option>
+                  {companies.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                 </select>
               )}
             </div>
@@ -205,7 +216,7 @@ export default function CreatePollPage() {
             </div>
           )}
 
-          <button type="submit" disabled={submitting || !question.trim() || (targetType === 'level' && !targetValue)}
+          <button type="submit" disabled={submitting || !question.trim() || (targetType !== 'all' && !targetValue)}
             className="w-full py-3 rounded-xl text-sm font-semibold text-white transition-all"
             style={{
               background: (submitting || !question.trim()) ? 'rgba(255,255,255,0.10)' : 'linear-gradient(135deg,#0d9488,#0891b2)',
