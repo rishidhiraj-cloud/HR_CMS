@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase-server'
-import { chunkText, getEmbeddings } from '@/lib/embeddings'
+import { chunkText } from '@/lib/embeddings'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -96,37 +96,22 @@ export async function POST(req: NextRequest) {
     console.warn('[upload] file storage failed (continuing):', storageErr.message)
   }
 
-  // Chunk and embed
+  // Chunk and insert rows now; embeddings are filled in incrementally by
+  // POST /api/policies/upload/embed-batch, paced from the client to respect
+  // Voyage's rate limit and Vercel's function duration limit.
   const chunks = chunkText(text)
+  const chunkRows = chunks.map((chunk, i) => ({
+    document_id: doc.id,
+    chunk_text: chunk,
+    chunk_index: i,
+  }))
 
-  try {
-    const BATCH = 20
-    const allEmbeddings: number[][] = []
-    for (let i = 0; i < chunks.length; i += BATCH) {
-      const batch = chunks.slice(i, i + BATCH)
-      const embs = await getEmbeddings(batch)
-      allEmbeddings.push(...embs)
-    }
-
-    const rows = chunks.map((chunk, i) => ({
-      document_id: doc.id,
-      chunk_text: chunk,
-      chunk_index: i,
-      embedding: JSON.stringify(allEmbeddings[i]),
-    }))
-
-    const { error: chunkErr } = await svc.from('document_chunks').insert(rows)
-    if (chunkErr) throw chunkErr
-
-    await svc.from('policy_documents')
-      .update({ status: 'ready', chunk_count: chunks.length })
-      .eq('id', doc.id)
-
-    return NextResponse.json({ success: true, documentId: doc.id, chunks: chunks.length })
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err)
-    console.error('[upload] embedding/insert failed:', msg)
+  const { error: chunkErr } = await svc.from('document_chunks').insert(chunkRows)
+  if (chunkErr) {
+    console.error('[upload] chunk insert failed:', chunkErr.message)
     await svc.from('policy_documents').update({ status: 'error' }).eq('id', doc.id)
-    return NextResponse.json({ error: `Failed to process document embeddings: ${msg}` }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to save document chunks' }, { status: 500 })
   }
+
+  return NextResponse.json({ success: true, documentId: doc.id, totalChunks: chunks.length })
 }
