@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (pending.length === 0) {
-    return NextResponse.json({ embedded: 0, remaining: 0, total: 0 })
+    return NextResponse.json({ embedded: 0, remaining: 0, totalChunks: 0 })
   }
 
   try {
@@ -59,16 +59,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Failed to embed chunks: ${msg}` }, { status: 500 })
   }
 
-  const { count: total } = await svc
+  const { count: total, error: totalErr } = await svc
     .from('document_chunks')
     .select('id', { count: 'exact', head: true })
     .eq('document_id', documentId)
 
-  const { count: remaining } = await svc
+  const { count: remaining, error: remainingErr } = await svc
     .from('document_chunks')
     .select('id', { count: 'exact', head: true })
     .eq('document_id', documentId)
     .is('embedding', null)
+
+  if (totalErr || remainingErr) {
+    const msg = (totalErr ?? remainingErr)!.message
+    return NextResponse.json({ error: msg }, { status: 500 })
+  }
 
   if (remaining === 0) {
     await svc.from('policy_documents')
@@ -76,5 +81,5 @@ export async function POST(req: NextRequest) {
       .eq('id', documentId)
   }
 
-  return NextResponse.json({ embedded: pending.length, remaining: remaining ?? 0, total: total ?? 0 })
+  return NextResponse.json({ embedded: pending.length, remaining: remaining ?? 0, totalChunks: total ?? 0 })
 }

@@ -84,6 +84,15 @@ export default function UploadDocumentPage() {
     setEmbeddedCount(0)
     setState('embedding')
 
+    // The upload route rejects documents under 100 chars and the chunker guarantees
+    // at least one chunk for any text that long, so totalChunksCount should never be
+    // 0 in practice — but guard anyway so a 0-chunk document can't get stuck forever.
+    if (totalChunksCount === 0) {
+      setResult({ chunks: 0 })
+      setState('done')
+      return
+    }
+
     let embeddedSoFar = 0
     while (embeddedSoFar < totalChunksCount) {
       const res = await fetch('/api/policies/upload/embed-batch', {
