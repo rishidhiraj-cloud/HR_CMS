@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
   const chunks = chunkText(text)
 
   try {
-    const BATCH = 64
+    const BATCH = 20
     const allEmbeddings: number[][] = []
     for (let i = 0; i < chunks.length; i += BATCH) {
       const batch = chunks.slice(i, i + BATCH)
@@ -124,8 +124,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, documentId: doc.id, chunks: chunks.length })
   } catch (err) {
-    console.error('[upload] embedding/insert failed:', err)
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('[upload] embedding/insert failed:', msg)
     await svc.from('policy_documents').update({ status: 'error' }).eq('id', doc.id)
-    return NextResponse.json({ error: 'Failed to process document embeddings' }, { status: 500 })
+    return NextResponse.json({ error: `Failed to process document embeddings: ${msg}` }, { status: 500 })
   }
 }
