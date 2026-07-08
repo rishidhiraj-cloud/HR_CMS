@@ -30,3 +30,13 @@ body {
 .ProseMirror { color: #111827; caret-color: #111827; }
 .ProseMirror * { color: inherit; }
 
+/* Native <select> dropdown popups render with the OS/browser default (usually
+   white) background, ignoring the translucent dark background set inline on
+   the <select> itself — only the closed box picks that up. Without this,
+   option text (styled white to read against the dark closed box) becomes
+   white-on-white inside the open popup. */
+select option {
+  background: #ffffff;
+  color: #111827;
+}
+
