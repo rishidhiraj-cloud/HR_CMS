@@ -93,7 +93,12 @@ export async function ocrPage(pdfBuffer: Uint8Array, pageIndex: number): Promise
     scale: 2,
   })
 
-  const worker = await createWorker('eng')
+  // Tesseract.js defaults its language-data cache path to '.' (the current
+  // working directory) if not told otherwise. On Vercel, the deployed
+  // function's filesystem is read-only except /tmp — writing eng.traineddata
+  // to '.' would fail there. /tmp is also correct locally (just an unused,
+  // harmless extra location instead of this package's own directory).
+  const worker = await createWorker('eng', undefined, { cachePath: '/tmp' })
   try {
     const { data: { text } } = await worker.recognize(Buffer.from(imageBuffer))
     return text

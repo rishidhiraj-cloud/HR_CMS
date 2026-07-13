@@ -16,6 +16,27 @@ const nextConfig: NextConfig = {
   // resolve() call internally, so it needs to stay external for the same
   // reason.
   serverExternalPackages: ["@napi-rs/canvas", "tesseract.js", "pdfjs-dist", "unpdf"],
+
+  // serverExternalPackages keeps these unbundled, but Next.js's file tracing
+  // (which decides what actually gets copied into the deployed Vercel
+  // function) still missed files at runtime that aren't reached via a
+  // statically-traceable require()/import: tesseract.js's worker thread
+  // script (src/worker-script/node/index.js) does `require('..')` to reach
+  // the package's own main entry, and on Vercel that threw "Cannot find
+  // module '..'" inside the worker thread — since that crash happens in a
+  // separate thread, it's not a catchable error on the main request, so the
+  // main thread's worker.recognize() call just hangs forever waiting on a
+  // dead worker until Vercel's hard 60s function timeout kills the whole
+  // request. pdfjs-dist's wasm/ assets are the same class of gap: they're
+  // referenced by lib/ocr.ts as a plain string path (for pdf.js's wasmUrl
+  // option), never through an actual require()/import() nft's tracer can
+  // follow. Force-including both packages' full contents works around it.
+  outputFileTracingIncludes: {
+    "/api/policies/upload/ocr-batch": [
+      "node_modules/tesseract.js/**/*",
+      "node_modules/pdfjs-dist/**/*",
+    ],
+  },
 };
 
 export default nextConfig;
