@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase-server'
 import { chunkAndInsertDocument } from '@/lib/embeddings'
-import { getPageCount } from '@/lib/ocr'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -102,10 +101,19 @@ export async function POST(req: NextRequest) {
   }
 
   // PDF with too little embedded text: fall back to page-by-page OCR, paced
-  // from the client via POST /api/policies/upload/ocr-batch.
+  // from the client via POST /api/policies/upload/ocr-batch. totalPages is
+  // deliberately NOT computed here — ocr-batch computes it itself on every
+  // call (it needs to anyway, to know when it's done), and calling
+  // getDocumentProxy() a second time from this separate route, ahead of
+  // ocr-batch's own call, corrupts pdf.js's Node "fake worker" message
+  // passing for ocr-batch's later call ("Cannot transfer object of
+  // unsupported type") — Next.js bundles each route handler independently,
+  // so this route and ocr-batch's route end up with separate, mutually
+  // incompatible copies of pdf.js's worker machinery sharing one process-global
+  // registration slot. The client learns totalPages from ocr-batch's own
+  // first response instead.
   if (text.length < 100) {
-    const totalPages = await getPageCount(new Uint8Array(fileBuffer))
-    return NextResponse.json({ success: true, documentId: doc.id, needsOcr: true, totalPages })
+    return NextResponse.json({ success: true, documentId: doc.id, needsOcr: true })
   }
 
   // Chunk and insert rows now; embeddings are filled in incrementally by

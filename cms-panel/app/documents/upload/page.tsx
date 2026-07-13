@@ -75,7 +75,7 @@ export default function UploadDocumentPage() {
       const json = await res.json()
       if (!res.ok || json.error) throw new Error(json.error ?? 'Upload failed')
       if (json.needsOcr) {
-        await runOcrBatchLoop(json.documentId, json.totalPages)
+        await runOcrBatchLoop(json.documentId)
       } else {
         await runEmbedBatchLoop(json.documentId, json.totalChunks)
       }
@@ -85,13 +85,15 @@ export default function UploadDocumentPage() {
     }
   }
 
-  async function runOcrBatchLoop(documentId: string, totalPagesCount: number) {
-    setOcrTotalPages(totalPagesCount)
+  async function runOcrBatchLoop(documentId: string) {
+    // totalPages isn't known yet here — ocr-batch computes it itself on
+    // every call (it needs to anyway, to know when it's done) and reports it
+    // in each response, so the progress bar picks it up from there instead.
+    setOcrTotalPages(0)
     setOcrPagesDone(0)
     setState('ocr')
 
-    let pagesDoneSoFar = 0
-    while (pagesDoneSoFar < totalPagesCount) {
+    while (true) {
       const res = await fetch('/api/policies/upload/ocr-batch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -100,8 +102,8 @@ export default function UploadDocumentPage() {
       const json = await res.json()
       if (!res.ok || json.error) throw new Error(json.error ?? 'OCR failed')
 
-      pagesDoneSoFar = json.pagesDone
-      setOcrPagesDone(pagesDoneSoFar)
+      setOcrTotalPages(json.totalPages)
+      setOcrPagesDone(json.pagesDone)
 
       if (json.complete) {
         await runEmbedBatchLoop(documentId, json.totalChunks)
