@@ -24,6 +24,9 @@
 .DS_Store
 *.pem
 
+# Tesseract.js OCR language data, cached to CWD by default on first use
+*.traineddata
+
 # debug
 npm-debug.log*
 yarn-debug.log*
