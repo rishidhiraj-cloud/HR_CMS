@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase-server'
-import { chunkText } from '@/lib/embeddings'
+import { chunkAndInsertDocument } from '@/lib/embeddings'
+import { getPageCount } from '@/lib/ocr'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -59,7 +60,11 @@ export async function POST(req: NextRequest) {
   }
 
   text = text.replace(/\s+/g, ' ').trim()
-  if (text.length < 100) {
+
+  // Non-PDF files have no OCR fallback — an empty/unreadable DOCX or TXT is
+  // genuinely unreadable, so fail exactly as before with no document row
+  // created. PDFs with too little text fall through to the OCR path below.
+  if (ext !== 'pdf' && text.length < 100) {
     return NextResponse.json({ error: 'Document appears to be empty or unreadable' }, { status: 422 })
   }
 
@@ -96,22 +101,20 @@ export async function POST(req: NextRequest) {
     console.warn('[upload] file storage failed (continuing):', storageErr.message)
   }
 
+  // PDF with too little embedded text: fall back to page-by-page OCR, paced
+  // from the client via POST /api/policies/upload/ocr-batch.
+  if (text.length < 100) {
+    const totalPages = await getPageCount(new Uint8Array(fileBuffer))
+    return NextResponse.json({ success: true, documentId: doc.id, needsOcr: true, totalPages })
+  }
+
   // Chunk and insert rows now; embeddings are filled in incrementally by
   // POST /api/policies/upload/embed-batch, paced from the client to respect
   // Voyage's rate limit and Vercel's function duration limit.
-  const chunks = chunkText(text)
-  const chunkRows = chunks.map((chunk, i) => ({
-    document_id: doc.id,
-    chunk_text: chunk,
-    chunk_index: i,
-  }))
-
-  const { error: chunkErr } = await svc.from('document_chunks').insert(chunkRows)
-  if (chunkErr) {
-    console.error('[upload] chunk insert failed:', chunkErr.message)
-    await svc.from('policy_documents').update({ status: 'error' }).eq('id', doc.id)
-    return NextResponse.json({ error: 'Failed to save document chunks' }, { status: 500 })
+  const result = await chunkAndInsertDocument(svc, doc.id, text)
+  if ('error' in result) {
+    return NextResponse.json({ error: result.error }, { status: 500 })
   }
 
-  return NextResponse.json({ success: true, documentId: doc.id, totalChunks: chunks.length })
+  return NextResponse.json({ success: true, documentId: doc.id, totalChunks: result.totalChunks })
 }

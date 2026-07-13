@@ -52,3 +52,27 @@ export function chunkText(text: string, chunkSize = 800, overlap = 150): string[
   }
   return chunks
 }
+
+type ServiceClient = ReturnType<typeof import('@supabase/supabase-js').createClient<any>>
+
+export async function chunkAndInsertDocument(
+  svc: ServiceClient,
+  documentId: string,
+  text: string
+): Promise<{ totalChunks: number } | { error: string }> {
+  const chunks = chunkText(text)
+  const chunkRows = chunks.map((chunk, i) => ({
+    document_id: documentId,
+    chunk_text: chunk,
+    chunk_index: i,
+  }))
+
+  const { error: chunkErr } = await svc.from('document_chunks').insert(chunkRows)
+  if (chunkErr) {
+    console.error('[chunkAndInsertDocument] chunk insert failed:', chunkErr.message)
+    await svc.from('policy_documents').update({ status: 'error' }).eq('id', documentId)
+    return { error: 'Failed to save document chunks' }
+  }
+
+  return { totalChunks: chunks.length }
+}
