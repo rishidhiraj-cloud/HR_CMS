@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { getBrowserClient } from '@/lib/supabase-browser'
 import AppLayout from '@/components/AppLayout'
 
-type UploadState = 'idle' | 'uploading' | 'processing' | 'embedding' | 'done' | 'error'
+type UploadState = 'idle' | 'uploading' | 'processing' | 'ocr' | 'embedding' | 'done' | 'error'
 
 const ACCEPTED = '.pdf,.docx,.txt'
 
@@ -31,6 +31,8 @@ export default function UploadDocumentPage() {
   const [result, setResult] = useState<{ chunks: number } | null>(null)
   const [embeddedCount, setEmbeddedCount] = useState(0)
   const [totalChunks, setTotalChunks] = useState(0)
+  const [ocrPagesDone, setOcrPagesDone] = useState(0)
+  const [ocrTotalPages, setOcrTotalPages] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -72,10 +74,39 @@ export default function UploadDocumentPage() {
       const res = await fetch('/api/policies/upload', { method: 'POST', body: formData })
       const json = await res.json()
       if (!res.ok || json.error) throw new Error(json.error ?? 'Upload failed')
-      await runEmbedBatchLoop(json.documentId, json.totalChunks)
+      if (json.needsOcr) {
+        await runOcrBatchLoop(json.documentId, json.totalPages)
+      } else {
+        await runEmbedBatchLoop(json.documentId, json.totalChunks)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed')
       setState('error')
+    }
+  }
+
+  async function runOcrBatchLoop(documentId: string, totalPagesCount: number) {
+    setOcrTotalPages(totalPagesCount)
+    setOcrPagesDone(0)
+    setState('ocr')
+
+    let pagesDoneSoFar = 0
+    while (pagesDoneSoFar < totalPagesCount) {
+      const res = await fetch('/api/policies/upload/ocr-batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ documentId }),
+      })
+      const json = await res.json()
+      if (!res.ok || json.error) throw new Error(json.error ?? 'OCR failed')
+
+      pagesDoneSoFar = json.pagesDone
+      setOcrPagesDone(pagesDoneSoFar)
+
+      if (json.complete) {
+        await runEmbedBatchLoop(documentId, json.totalChunks)
+        return
+      }
     }
   }
 
@@ -121,12 +152,13 @@ export default function UploadDocumentPage() {
     idle: 'Upload & Index Document',
     uploading: 'Uploading…',
     processing: 'Processing & indexing with AI…',
+    ocr: 'Reading scanned pages…',
     embedding: 'Embedding chunks…',
     done: 'Done!',
     error: 'Try Again',
   }
 
-  const busy = state === 'uploading' || state === 'processing' || state === 'embedding'
+  const busy = state === 'uploading' || state === 'processing' || state === 'ocr' || state === 'embedding'
 
   const glassCard = {
     background: 'rgba(255,255,255,0.06)',
@@ -163,7 +195,7 @@ export default function UploadDocumentPage() {
             </p>
             <div className="mt-6 flex gap-3 justify-center">
               <button
-                onClick={() => { setFile(null); setName(''); setLevel(''); setCompany(''); setState('idle'); setResult(null); setEmbeddedCount(0); setTotalChunks(0); if (inputRef.current) inputRef.current.value = '' }}
+                onClick={() => { setFile(null); setName(''); setLevel(''); setCompany(''); setState('idle'); setResult(null); setEmbeddedCount(0); setTotalChunks(0); setOcrPagesDone(0); setOcrTotalPages(0); if (inputRef.current) inputRef.current.value = '' }}
                 className="px-4 py-2 text-sm font-medium rounded-xl transition-all"
                 style={{ background: 'rgba(255,255,255,0.10)', color: '#5eead4', border: '1px solid rgba(13,148,136,0.30)' }}
               >
@@ -277,10 +309,29 @@ export default function UploadDocumentPage() {
             )}
 
             {/* Progress */}
-            {busy && state !== 'embedding' && (
+            {busy && state !== 'embedding' && state !== 'ocr' && (
               <div className="flex items-center gap-3 text-sm rounded-xl px-4 py-3" style={{ background: 'rgba(13,148,136,0.12)', border: '1px solid rgba(13,148,136,0.25)', color: '#5eead4' }}>
                 <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin shrink-0" />
                 {stateLabel[state]}
+              </div>
+            )}
+
+            {/* OCR progress bar */}
+            {state === 'ocr' && (
+              <div className="rounded-xl px-4 py-3" style={{ background: 'rgba(13,148,136,0.12)', border: '1px solid rgba(13,148,136,0.25)' }}>
+                <div className="flex items-center justify-between text-sm mb-2" style={{ color: '#5eead4' }}>
+                  <span>Reading page {ocrPagesDone} / {ocrTotalPages}…</span>
+                  <span>{ocrTotalPages > 0 ? Math.round((ocrPagesDone / ocrTotalPages) * 100) : 0}%</span>
+                </div>
+                <div className="rounded-full overflow-hidden" style={{ height: 6, background: 'rgba(255,255,255,0.10)' }}>
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{ width: `${ocrTotalPages > 0 ? (ocrPagesDone / ocrTotalPages) * 100 : 0}%`, background: 'linear-gradient(135deg, #0d9488, #0891b2)' }}
+                  />
+                </div>
+                <p className="text-xs mt-2" style={{ color: 'rgba(255,255,255,0.40)' }}>
+                  This looks like a scanned document — reading its text before indexing. Keep this tab open.
+                </p>
               </div>
             )}
 
