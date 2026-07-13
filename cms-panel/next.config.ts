@@ -19,21 +19,40 @@ const nextConfig: NextConfig = {
 
   // serverExternalPackages keeps these unbundled, but Next.js's file tracing
   // (which decides what actually gets copied into the deployed Vercel
-  // function) still missed files at runtime that aren't reached via a
-  // statically-traceable require()/import: tesseract.js's worker thread
-  // script (src/worker-script/node/index.js) does `require('..')` to reach
-  // the package's own main entry, and on Vercel that threw "Cannot find
-  // module '..'" inside the worker thread — since that crash happens in a
-  // separate thread, it's not a catchable error on the main request, so the
-  // main thread's worker.recognize() call just hangs forever waiting on a
-  // dead worker until Vercel's hard 60s function timeout kills the whole
-  // request. pdfjs-dist's wasm/ assets are the same class of gap: they're
+  // function) still missed files needed at runtime. Root cause: tesseract.js
+  // OCR work happens in a Node worker_thread, spawned dynamically at runtime
+  // (new Worker(...)) rather than through a statically-visible import/require
+  // — Next.js's build-time tracer has no way to see into that separate
+  // module graph at all. First symptom: the worker script's own
+  // require('..') (reaching tesseract.js's main entry) failed with "Cannot
+  // find module '..'". Fixing that surfaced the same problem one level
+  // deeper: the worker script also requires tesseract.js's own npm
+  // dependencies directly (e.g. "Cannot find module 'bmp-js'"), which are
+  // separate, sibling node_modules packages, not part of tesseract.js's own
+  // directory. Since crashes in that worker thread aren't catchable from the
+  // main request, the main thread's worker.recognize() call just hangs until
+  // Vercel's hard 60s function timeout kills the whole request — which is
+  // what surfaced to the user as a non-JSON "An error o..." response.
+  // Force-including tesseract.js's entire runtime dependency tree (per its
+  // package.json "dependencies") avoids finding the rest of these one crash
+  // at a time. pdfjs-dist's wasm/ assets are a related but separate gap:
   // referenced by lib/ocr.ts as a plain string path (for pdf.js's wasmUrl
-  // option), never through an actual require()/import() nft's tracer can
-  // follow. Force-including both packages' full contents works around it.
+  // option), never through an actual require()/import() the tracer can see.
   outputFileTracingIncludes: {
     "/api/policies/upload/ocr-batch": [
       "node_modules/tesseract.js/**/*",
+      "node_modules/bmp-js/**/*",
+      "node_modules/idb-keyval/**/*",
+      "node_modules/is-url/**/*",
+      "node_modules/node-fetch/**/*",
+      "node_modules/whatwg-url/**/*",
+      "node_modules/tr46/**/*",
+      "node_modules/webidl-conversions/**/*",
+      "node_modules/opencollective-postinstall/**/*",
+      "node_modules/regenerator-runtime/**/*",
+      "node_modules/tesseract.js-core/**/*",
+      "node_modules/wasm-feature-detect/**/*",
+      "node_modules/zlibjs/**/*",
       "node_modules/pdfjs-dist/**/*",
     ],
   },
