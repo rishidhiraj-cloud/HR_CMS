@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { getBrowserClient } from '@/lib/supabase-browser'
 import AppLayout from '@/components/AppLayout'
 
-type UploadState = 'idle' | 'uploading' | 'processing' | 'ocr' | 'embedding' | 'done' | 'error'
+type UploadState = 'idle' | 'uploading' | 'processing' | 'ocr' | 'embedding' | 'done'
 
 const ACCEPTED = '.pdf,.docx,.txt'
 
@@ -19,20 +19,36 @@ interface Company {
   name: string
 }
 
+interface LevelResult {
+  level: string
+  label: string
+  status: 'success' | 'error'
+  chunks?: number
+  error?: string
+}
+
+// '' is the existing "All Levels" sentinel value the upload API already
+// understands (an empty level field maps to target_level = NULL).
+function levelLabel(levelValue: string): string {
+  return levelValue === '' ? 'All Levels' : levelValue
+}
+
 export default function UploadDocumentPage() {
   const [file, setFile] = useState<File | null>(null)
   const [name, setName] = useState('')
-  const [level, setLevel] = useState<string>('')
+  const [allLevels, setAllLevels] = useState(true)
+  const [selectedLevels, setSelectedLevels] = useState<string[]>([])
   const [levels, setLevels] = useState<Level[]>([])
   const [company, setCompany] = useState<string>('')
   const [companies, setCompanies] = useState<Company[]>([])
   const [state, setState] = useState<UploadState>('idle')
-  const [error, setError] = useState('')
-  const [result, setResult] = useState<{ chunks: number } | null>(null)
   const [embeddedCount, setEmbeddedCount] = useState(0)
   const [totalChunks, setTotalChunks] = useState(0)
   const [ocrPagesDone, setOcrPagesDone] = useState(0)
   const [ocrTotalPages, setOcrTotalPages] = useState(0)
+  const [batchLevels, setBatchLevels] = useState<string[]>([])
+  const [currentBatchIndex, setCurrentBatchIndex] = useState(0)
+  const [batchResults, setBatchResults] = useState<LevelResult[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -52,43 +68,65 @@ export default function UploadDocumentPage() {
     const f = e.target.files?.[0] ?? null
     setFile(f)
     if (f && !name) setName(f.name.replace(/\.[^.]+$/, ''))
-    setError('')
     setState('idle')
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!file || !name.trim()) return
-    setError('')
-    setState('uploading')
-    try {
-      const supabase = getBrowserClient()
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) { setError('Not logged in'); setState('error'); return }
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('name', name.trim())
-      formData.append('level', level)
-      formData.append('company', company)
-      setState('processing')
-      const res = await fetch('/api/policies/upload', { method: 'POST', body: formData })
-      const json = await res.json()
-      if (!res.ok || json.error) throw new Error(json.error ?? 'Upload failed')
-      if (json.needsOcr) {
-        await runOcrBatchLoop(json.documentId)
-      } else {
-        await runEmbedBatchLoop(json.documentId, json.totalChunks)
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Upload failed')
-      setState('error')
+  function selectAllLevels() {
+    setAllLevels(true)
+    setSelectedLevels([])
+  }
+
+  function toggleIndividualLevel(levelName: string) {
+    setAllLevels(false)
+    setSelectedLevels(prev =>
+      prev.includes(levelName) ? prev.filter(l => l !== levelName) : [...prev, levelName]
+    )
+  }
+
+  function resetForm() {
+    setFile(null)
+    setName('')
+    setAllLevels(true)
+    setSelectedLevels([])
+    setCompany('')
+    setState('idle')
+    setEmbeddedCount(0)
+    setTotalChunks(0)
+    setOcrPagesDone(0)
+    setOcrTotalPages(0)
+    setBatchLevels([])
+    setCurrentBatchIndex(0)
+    setBatchResults([])
+    if (inputRef.current) inputRef.current.value = ''
+  }
+
+  // Runs the existing, unmodified single-level upload -> (OCR if needed) ->
+  // embed pipeline for one level value, returning the resulting chunk count
+  // or throwing. This is byte-for-byte the same sequence of network calls
+  // the page made for a single upload before this feature existed — the
+  // only thing that changed is that it's now a function callable once per
+  // selected level instead of running inline in the submit handler.
+  async function runSingleLevelUpload(levelValue: string): Promise<number> {
+    const supabase = getBrowserClient()
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) throw new Error('Not logged in')
+    const formData = new FormData()
+    formData.append('file', file!)
+    formData.append('name', name.trim())
+    formData.append('level', levelValue)
+    formData.append('company', company)
+    setState('processing')
+    const res = await fetch('/api/policies/upload', { method: 'POST', body: formData })
+    const json = await res.json()
+    if (!res.ok || json.error) throw new Error(json.error ?? 'Upload failed')
+    if (json.needsOcr) {
+      return await runOcrBatchLoop(json.documentId)
+    } else {
+      return await runEmbedBatchLoop(json.documentId, json.totalChunks)
     }
   }
 
-  async function runOcrBatchLoop(documentId: string) {
-    // totalPages isn't known yet here — ocr-batch computes it itself on
-    // every call (it needs to anyway, to know when it's done) and reports it
-    // in each response, so the progress bar picks it up from there instead.
+  async function runOcrBatchLoop(documentId: string): Promise<number> {
     setOcrTotalPages(0)
     setOcrPagesDone(0)
     setState('ocr')
@@ -106,13 +144,12 @@ export default function UploadDocumentPage() {
       setOcrPagesDone(json.pagesDone)
 
       if (json.complete) {
-        await runEmbedBatchLoop(documentId, json.totalChunks)
-        return
+        return await runEmbedBatchLoop(documentId, json.totalChunks)
       }
     }
   }
 
-  async function runEmbedBatchLoop(documentId: string, totalChunksCount: number) {
+  async function runEmbedBatchLoop(documentId: string, totalChunksCount: number): Promise<number> {
     setTotalChunks(totalChunksCount)
     setEmbeddedCount(0)
     setState('embedding')
@@ -121,9 +158,7 @@ export default function UploadDocumentPage() {
     // at least one chunk for any text that long, so totalChunksCount should never be
     // 0 in practice — but guard anyway so a 0-chunk document can't get stuck forever.
     if (totalChunksCount === 0) {
-      setResult({ chunks: 0 })
-      setState('done')
-      return
+      return 0
     }
 
     let embeddedSoFar = 0
@@ -146,7 +181,36 @@ export default function UploadDocumentPage() {
       }
     }
 
-    setResult({ chunks: totalChunksCount })
+    return totalChunksCount
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!file || !name.trim() || !company) return
+    const levelsToRun = allLevels ? [''] : selectedLevels
+    if (levelsToRun.length === 0) return
+
+    setBatchLevels(levelsToRun)
+    setBatchResults([])
+    setCurrentBatchIndex(0)
+    setState('uploading')
+
+    for (let i = 0; i < levelsToRun.length; i++) {
+      setCurrentBatchIndex(i)
+      const levelValue = levelsToRun[i]
+      try {
+        const chunks = await runSingleLevelUpload(levelValue)
+        setBatchResults(prev => [...prev, { level: levelValue, label: levelLabel(levelValue), status: 'success', chunks }])
+      } catch (err) {
+        setBatchResults(prev => [...prev, {
+          level: levelValue,
+          label: levelLabel(levelValue),
+          status: 'error',
+          error: err instanceof Error ? err.message : 'Upload failed',
+        }])
+      }
+    }
+
     setState('done')
   }
 
@@ -157,10 +221,12 @@ export default function UploadDocumentPage() {
     ocr: 'Reading scanned pages…',
     embedding: 'Embedding chunks…',
     done: 'Done!',
-    error: 'Try Again',
   }
 
   const busy = state === 'uploading' || state === 'processing' || state === 'ocr' || state === 'embedding'
+  const missingLevelSelection = !allLevels && selectedLevels.length === 0
+  const submitDisabled = !file || !name.trim() || !company || busy || missingLevelSelection
+  const allSucceeded = batchResults.length > 0 && batchResults.every(r => r.status === 'success')
 
   const glassCard = {
     background: 'rgba(255,255,255,0.06)',
@@ -185,19 +251,33 @@ export default function UploadDocumentPage() {
           ← Back to Documents
         </Link>
 
-        {state === 'done' && result ? (
+        {state === 'done' ? (
           <div
-            className="rounded-2xl p-8 text-center"
+            className="rounded-2xl p-8"
             style={{ background: 'rgba(13,148,136,0.12)', border: '1px solid rgba(13,148,136,0.25)' }}
           >
-            <p className="text-4xl mb-3">✅</p>
-            <p className="font-semibold text-white text-lg">Document indexed successfully!</p>
-            <p className="text-sm mt-2" style={{ color: '#99f6e4' }}>
-              {result.chunks} text chunks created and embedded. Employees can now ask questions about this document.
+            <p className="text-4xl mb-3 text-center">{allSucceeded ? '✅' : '⚠️'}</p>
+            <p className="font-semibold text-white text-lg text-center">
+              {batchResults.length > 1 ? 'Upload complete' : allSucceeded ? 'Document indexed successfully!' : 'Upload failed'}
             </p>
+            <ul className="mt-4 space-y-2">
+              {batchResults.map(r => (
+                <li key={r.level} className="flex items-start gap-2 text-sm">
+                  <span>{r.status === 'success' ? '✅' : '❌'}</span>
+                  <span>
+                    <span className="text-white font-medium">{r.label}</span>
+                    {r.status === 'success' ? (
+                      <span style={{ color: '#99f6e4' }}> — {r.chunks} text chunks created and embedded.</span>
+                    ) : (
+                      <span style={{ color: '#fca5a5' }}> — {r.error}</span>
+                    )}
+                  </span>
+                </li>
+              ))}
+            </ul>
             <div className="mt-6 flex gap-3 justify-center">
               <button
-                onClick={() => { setFile(null); setName(''); setLevel(''); setCompany(''); setState('idle'); setResult(null); setEmbeddedCount(0); setTotalChunks(0); setOcrPagesDone(0); setOcrTotalPages(0); if (inputRef.current) inputRef.current.value = '' }}
+                onClick={resetForm}
                 className="px-4 py-2 text-sm font-medium rounded-xl transition-all"
                 style={{ background: 'rgba(255,255,255,0.10)', color: '#5eead4', border: '1px solid rgba(13,148,136,0.30)' }}
               >
@@ -282,31 +362,48 @@ export default function UploadDocumentPage() {
               </p>
             </div>
 
-            {/* Level */}
+            {/* Levels (multi-select) */}
             <div>
               <label className="block text-sm font-medium mb-1.5" style={{ color: 'rgba(255,255,255,0.70)' }}>Visible To</label>
-              <select
-                value={level}
-                onChange={e => setLevel(e.target.value)}
-                className="w-full rounded-xl px-4 py-2.5 text-sm text-white outline-none transition-all appearance-none cursor-pointer"
-                style={{ ...inputStyle, backgroundImage: 'none' }}
-                onFocus={e => { e.target.style.border = '1px solid rgba(13,148,136,0.60)' }}
-                onBlur={e => { e.target.style.border = '1px solid rgba(255,255,255,0.14)' }}
-              >
-                <option value="">All Levels (everyone)</option>
+              <label className="flex items-center gap-2 text-sm text-white cursor-pointer mb-2">
+                <input
+                  type="checkbox"
+                  checked={allLevels}
+                  onChange={selectAllLevels}
+                  style={{ accentColor: '#0d9488' }}
+                  className="w-4 h-4"
+                />
+                All Levels (everyone)
+              </label>
+              <div className="rounded-xl p-3 space-y-1.5 max-h-48 overflow-y-auto" style={inputStyle}>
                 {levels.map(l => (
-                  <option key={l.id} value={l.name}>{l.name}</option>
+                  <label
+                    key={l.id}
+                    className="flex items-center gap-2 text-sm cursor-pointer"
+                    style={{ color: allLevels ? 'rgba(255,255,255,0.35)' : 'white' }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={!allLevels && selectedLevels.includes(l.name)}
+                      disabled={allLevels}
+                      onChange={() => toggleIndividualLevel(l.name)}
+                      style={{ accentColor: '#0d9488' }}
+                      className="w-4 h-4"
+                    />
+                    {l.name}
+                  </label>
                 ))}
-              </select>
+              </div>
               <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.35)' }}>
-                Select a level to restrict visibility. Employees of other levels won&apos;t see this document or get answers from it.
+                Select one or more levels to restrict visibility, or leave &quot;All Levels&quot; checked for everyone.
+                Selecting multiple levels uploads this document once per level automatically.
               </p>
             </div>
 
-            {/* Error */}
-            {error && (
-              <div className="rounded-xl px-4 py-3 text-sm" style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.30)', color: '#fca5a5' }}>
-                {error}
+            {/* Batch progress banner (only shown when uploading for more than one level) */}
+            {busy && batchLevels.length > 1 && (
+              <div className="text-sm font-medium" style={{ color: '#5eead4' }}>
+                Level {currentBatchIndex + 1} of {batchLevels.length}: {levelLabel(batchLevels[currentBatchIndex])}
               </div>
             )}
 
@@ -358,12 +455,12 @@ export default function UploadDocumentPage() {
 
             <button
               type="submit"
-              disabled={!file || !name.trim() || !company || busy}
+              disabled={submitDisabled}
               className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all flex items-center justify-center gap-2"
               style={{
-                background: (!file || !name.trim() || !company || busy) ? 'rgba(255,255,255,0.10)' : 'linear-gradient(135deg, #0d9488, #0891b2)',
-                boxShadow: (!file || !name.trim() || !company || busy) ? 'none' : '0 4px 14px rgba(13,148,136,0.30)',
-                cursor: (!file || !name.trim() || !company || busy) ? 'not-allowed' : 'pointer',
+                background: submitDisabled ? 'rgba(255,255,255,0.10)' : 'linear-gradient(135deg, #0d9488, #0891b2)',
+                boxShadow: submitDisabled ? 'none' : '0 4px 14px rgba(13,148,136,0.30)',
+                cursor: submitDisabled ? 'not-allowed' : 'pointer',
               }}
             >
               {busy ? (
