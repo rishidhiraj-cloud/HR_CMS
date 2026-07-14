@@ -385,7 +385,6 @@ export default function UploadDocumentPage() {
                     <input
                       type="checkbox"
                       checked={!allLevels && selectedLevels.includes(l.name)}
-                      disabled={allLevels}
                       onChange={() => toggleIndividualLevel(l.name)}
                       style={{ accentColor: '#0d9488' }}
                       className="w-4 h-4"
