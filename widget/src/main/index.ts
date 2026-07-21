@@ -4,6 +4,7 @@ import crypto from 'crypto'
 import { createClient, RealtimeChannel } from '@supabase/supabase-js'
 import WebSocket from 'ws'
 import { createTray, setBadge } from './tray'
+import { registerLoginItem } from './login-item'
 import { createPopupWindow, createFeedWindow, createPollPopupWindow } from './windows'
 import { SeenStore } from './seen-store'
 import { AuthStore } from './auth-store'
@@ -267,6 +268,7 @@ app.whenReady().then(async () => {
 
   try {
     app.dock?.hide()
+    registerLoginItem()
 
     seenStore = new SeenStore(path.join(app.getPath('userData'), 'seen.db'))
     authStore = new AuthStore(path.join(app.getPath('userData'), 'auth.enc'))
