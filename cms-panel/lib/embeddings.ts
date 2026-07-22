@@ -132,6 +132,72 @@ export async function expandTopDocumentChunks(
   return [...expanded, ...others]
 }
 
+const NAME_STOPWORDS = new Set(['policy', 'the', 'and', 'for', 'of', 'scheme', 'a', 'an'])
+
+function significantWords(name: string): Set<string> {
+  return new Set(
+    name.toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length >= 4 && !NAME_STOPWORDS.has(w))
+  )
+}
+
+function sharesKeyword(a: string, b: string): boolean {
+  const wordsA = significantWords(a)
+  if (wordsA.size === 0) return false
+  for (const w of significantWords(b)) if (wordsA.has(w)) return true
+  return false
+}
+
+// A broad question about one document can also apply to its sibling documents (e.g.
+// "Paternity Leave Policy" / "Pink Leave Policy" alongside "Leave Policy"). Embedding
+// similarity alone doesn't reliably surface these — verified empirically that a small,
+// genuinely-related sibling document can score *below* an unrelated document (a 2-chunk
+// Paternity Leave Policy scored lower than an unrelated Gift Policy for a leave query).
+// Siblings are found by shared keywords in the document name instead, then included in
+// full if small enough.
+export async function expandSiblingDocuments(
+  svc: ServiceClient,
+  chunks: RetrievedChunk[],
+  employeeCompany: string | null,
+  maxChunks = 25
+): Promise<RetrievedChunk[]> {
+  if (chunks.length === 0) return chunks
+
+  const primaryName = chunks[0].document_name
+  const includedDocIds = new Set(chunks.map(c => c.document_id))
+
+  let query = svc.from('policy_documents').select('id, name').eq('status', 'ready')
+  if (employeeCompany) query = query.eq('company', employeeCompany)
+  const { data: allDocs, error } = await query
+
+  if (error || !allDocs) return chunks
+
+  const siblings = (allDocs as any[]).filter(
+    d => !includedDocIds.has(d.id) && sharesKeyword(primaryName, d.name)
+  )
+
+  const siblingChunks: RetrievedChunk[] = []
+  for (const sibling of siblings) {
+    const { data: rows, error: chunkErr } = await svc
+      .from('document_chunks')
+      .select('chunk_text, chunk_index')
+      .eq('document_id', sibling.id)
+      .order('chunk_index')
+
+    if (chunkErr || !rows || rows.length === 0 || rows.length > maxChunks) continue
+
+    for (const row of rows as any[]) {
+      siblingChunks.push({
+        chunk_text: row.chunk_text,
+        document_id: sibling.id,
+        document_name: sibling.name,
+        similarity: chunks[0].similarity,
+      })
+    }
+  }
+
+  return [...chunks, ...siblingChunks]
+}
+
 export async function chunkAndInsertDocument(
   svc: ServiceClient,
   documentId: string,

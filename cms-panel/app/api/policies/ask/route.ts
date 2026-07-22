@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
-import { getEmbedding, expandTopDocumentChunks, RetrievedChunk } from '@/lib/embeddings'
+import { getEmbedding, expandTopDocumentChunks, expandSiblingDocuments, RetrievedChunk } from '@/lib/embeddings'
 
 export const runtime = 'nodejs'
 
@@ -64,7 +64,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Search error' }, { status: 500 })
   }
 
-  const chunks = await expandTopDocumentChunks(svc, (topChunks ?? []) as RetrievedChunk[])
+  const topDocExpanded = await expandTopDocumentChunks(svc, (topChunks ?? []) as RetrievedChunk[])
+  const chunks = await expandSiblingDocuments(svc, topDocExpanded, employeeCompany)
 
   const hasChunks = chunks.length > 0
 
