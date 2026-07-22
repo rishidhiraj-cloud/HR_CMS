@@ -1,17 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
-import { getEmbedding } from '@/lib/embeddings'
+import { getEmbedding, expandTopDocumentChunks, RetrievedChunk } from '@/lib/embeddings'
 
 export const runtime = 'nodejs'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-
-interface Chunk {
-  chunk_text: string
-  document_name: string
-  similarity: number
-}
 
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get('authorization')
@@ -58,7 +52,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Embedding service error' }, { status: 502 })
   }
 
-  const { data: chunks, error: searchErr } = await svc.rpc('match_document_chunks', {
+  const { data: topChunks, error: searchErr } = await svc.rpc('match_document_chunks', {
     query_embedding: JSON.stringify(questionEmbedding),
     match_count: 5,
     employee_level: employeeLevel,
@@ -70,10 +64,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Search error' }, { status: 500 })
   }
 
-  const hasChunks = chunks && chunks.length > 0
+  const chunks = await expandTopDocumentChunks(svc, (topChunks ?? []) as RetrievedChunk[])
+
+  const hasChunks = chunks.length > 0
 
   const context = hasChunks
-    ? (chunks as Chunk[]).map(c => `[From: ${c.document_name}]\n${c.chunk_text}`).join('\n\n---\n\n')
+    ? chunks.map(c => `[From: ${c.document_name}]\n${c.chunk_text}`).join('\n\n---\n\n')
     : null
 
   const systemPrompt = hasChunks
@@ -100,7 +96,7 @@ No relevant policy documents were found for this question. Politely tell the emp
   })
 
   const answer = response.content[0].type === 'text' ? response.content[0].text : ''
-  const sources = hasChunks ? [...new Set((chunks as Chunk[]).map(c => c.document_name))] : []
+  const sources = hasChunks ? [...new Set(chunks.map(c => c.document_name))] : []
 
   // Log query for analytics (fire-and-forget)
   svc.from('search_logs').insert({

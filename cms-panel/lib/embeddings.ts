@@ -39,21 +39,98 @@ export async function getEmbedding(text: string): Promise<number[]> {
   return results[0]
 }
 
+// Splits text into paragraph/numbered-clause units (e.g. "2.2.3 Sick Leave") before
+// packing them into chunks, so a short clause never gets buried inside a longer
+// neighboring clause's chunk — that dilutes its embedding toward the wrong topic
+// and can knock the answer out of the top-K retrieved chunks entirely.
+const SECTION_BOUNDARY = /\n\s*\n|(?<![\d.])(?=\d+(?:\.\d+){1,3}\s+[A-Z])/
+
+function splitIntoUnits(text: string): string[] {
+  return text
+    .split(SECTION_BOUNDARY)
+    .map(u => u.replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+}
+
 export function chunkText(text: string, chunkSize = 800, overlap = 150): string[] {
-  const cleaned = text.replace(/\s+/g, ' ').trim()
   const chunks: string[] = []
-  let start = 0
-  while (start < cleaned.length) {
-    const end = Math.min(start + chunkSize, cleaned.length)
-    const chunk = cleaned.slice(start, end).trim()
-    if (chunk.length > 80) chunks.push(chunk)
-    if (end === cleaned.length) break
-    start += chunkSize - overlap
+  let current = ''
+
+  const flush = () => {
+    if (current.length > 80) chunks.push(current)
+    current = ''
   }
+
+  for (const unit of splitIntoUnits(text)) {
+    if (unit.length > chunkSize) {
+      // Oversized unit (e.g. one very long clause) — fall back to fixed-size slicing.
+      flush()
+      let start = 0
+      while (start < unit.length) {
+        const end = Math.min(start + chunkSize, unit.length)
+        const slice = unit.slice(start, end).trim()
+        if (slice.length > 80) chunks.push(slice)
+        if (end === unit.length) break
+        start += chunkSize - overlap
+      }
+      continue
+    }
+
+    const candidate = current ? `${current} ${unit}` : unit
+    if (candidate.length > chunkSize) {
+      flush()
+      current = unit
+    } else {
+      current = candidate
+    }
+  }
+  flush()
+
   return chunks
 }
 
 type ServiceClient = ReturnType<typeof import('@supabase/supabase-js').createClient<any>>
+
+export interface RetrievedChunk {
+  chunk_text: string
+  document_id: string
+  document_name: string
+  similarity: number
+}
+
+// A broad question (e.g. "how many leaves can I avail?") can have its answer spread
+// across many small, topically-narrow sections of one document (a leave policy covering
+// 8 leave types) — no single section wins the top-K similarity race for every subtopic.
+// When the single best-matching chunk's document is small enough, pull in its entire
+// chunk set instead of just the top-K slice, so the model sees every section.
+export async function expandTopDocumentChunks(
+  svc: ServiceClient,
+  chunks: RetrievedChunk[],
+  maxChunks = 25
+): Promise<RetrievedChunk[]> {
+  if (chunks.length === 0) return chunks
+
+  const topDocId = chunks[0].document_id
+  const { data: fullDocChunks, error } = await svc
+    .from('document_chunks')
+    .select('chunk_text, chunk_index, policy_documents(name)')
+    .eq('document_id', topDocId)
+    .order('chunk_index')
+
+  if (error || !fullDocChunks || fullDocChunks.length === 0 || fullDocChunks.length > maxChunks) {
+    return chunks
+  }
+
+  const expanded: RetrievedChunk[] = fullDocChunks.map((c: any) => ({
+    chunk_text: c.chunk_text,
+    document_id: topDocId,
+    document_name: c.policy_documents.name,
+    similarity: chunks[0].similarity,
+  }))
+
+  const others = chunks.filter(c => c.document_id !== topDocId)
+  return [...expanded, ...others]
+}
 
 export async function chunkAndInsertDocument(
   svc: ServiceClient,
