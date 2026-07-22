@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { getEmbedding, expandTopDocumentChunks, expandSiblingDocuments, RetrievedChunk } from '@/lib/embeddings'
+import { formatEmployeeProfile } from '@/lib/prompt'
 
 export const runtime = 'nodejs'
 
@@ -24,24 +25,28 @@ export async function POST(req: NextRequest) {
   let userId: string
   let employeeLevel: string | null = null
   let employeeCompany: string | null = null
+  let employeeDepartment: string | null = null
 
   if (token) {
     const { data: { user }, error: userErr } = await svc.auth.getUser(token)
     if (userErr || !user) return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
     userId = user.id
-    // Get the employee's role/company for level- and company-based document filtering.
+    // Get the employee's role/company for level- and company-based document filtering,
+    // and department/role again to tell the model who's asking (see formatEmployeeProfile).
     // HR users won't be in the employees table — they get null (sees all docs).
-    const { data: emp } = await svc.from('employees').select('role, company').eq('id', userId).single()
+    const { data: emp } = await svc.from('employees').select('role, company, department').eq('id', userId).single()
     employeeLevel = emp?.role ?? null
     employeeCompany = emp?.company ?? null
+    employeeDepartment = emp?.department ?? null
   } else {
     const headerEmpId = req.headers.get('x-employee-id')
     if (!headerEmpId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    const { data: emp } = await svc.from('employees').select('id, role, company').eq('id', headerEmpId).single()
+    const { data: emp } = await svc.from('employees').select('id, role, company, department').eq('id', headerEmpId).single()
     if (!emp) return NextResponse.json({ error: 'Invalid employee' }, { status: 401 })
     userId = emp.id
     employeeLevel = emp.role ?? null
     employeeCompany = emp.company ?? null
+    employeeDepartment = emp.department ?? null
   }
 
   let questionEmbedding: number[]
@@ -78,6 +83,8 @@ export async function POST(req: NextRequest) {
 
 LANGUAGE RULE: Detect the language of the employee's question and respond in that SAME language. If the question is in Hindi (or Hinglish), respond in Hindi. If in English, respond in English.
 
+The employee's grade/level and department are given in their profile below — many entitlements (e.g. hotel tariff tiers, travel allowances, leave eligibility) depend on these. Use them directly to answer grade- or department-specific questions; do NOT ask the employee for their grade or department since it is already provided. Only ask for clarification on details that are genuinely not part of their profile (e.g. travel destination, dates) and are required to answer.
+
 Answer questions based ONLY on the policy documents provided. Format using markdown: **bold** for key terms, *italic* for emphasis, bullet points (- item) for lists, blank line between topics. Be concise, accurate, and friendly. If the answer is not clearly in the documents, say so and suggest contacting HR directly. Never invent policies.`
     : `You are a helpful HR assistant for Modicare employees.
 
@@ -85,9 +92,11 @@ LANGUAGE RULE: Detect the language of the employee's question and respond in tha
 
 No relevant policy documents were found for this question. Politely tell the employee you couldn't find relevant information in the available documents and suggest they contact HR directly. Keep it brief and friendly.`
 
+  const employeeProfile = formatEmployeeProfile({ level: employeeLevel, department: employeeDepartment })
+
   const userContent = context
-    ? `Policy Documents:\n\n${context}\n\n---\n\nEmployee Question: ${question}`
-    : `Employee Question: ${question}`
+    ? `${employeeProfile}\n\nPolicy Documents:\n\n${context}\n\n---\n\nEmployee Question: ${question}`
+    : `${employeeProfile}\n\nEmployee Question: ${question}`
 
   const response = await anthropic.messages.create({
     model: 'claude-haiku-4-5-20251001',
