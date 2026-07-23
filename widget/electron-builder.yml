@@ -33,6 +33,8 @@ mac:
         - arm64
   hardenedRuntime: false
 
+afterSign: scripts/afterSign.js
+
 dmg:
   title: HR Widget
   window:
