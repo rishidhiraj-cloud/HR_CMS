@@ -17,6 +17,15 @@ interface QA {
   answerHtml: string
   sources: string[]
   error?: boolean
+  timestamp: number
+}
+
+function formatQaTimestamp(ts: number): string {
+  const d = new Date(ts)
+  const now = new Date()
+  const time = d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })
+  if (d.toDateString() === now.toDateString()) return `Today, ${time}`
+  return `${d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}, ${time}`
 }
 
 // Convert markdown-like Claude output to HTML
@@ -163,14 +172,17 @@ export default function Feed() {
   const [updateReady, setUpdateReady] = useState(false)
 
   const [question, setQuestion] = useState('')
+  const [pendingQuestion, setPendingQuestion] = useState('')
   const [asking, setAsking] = useState(false)
   const [qaHistory, setQaHistory] = useState<QA[]>([])
-  const qaEndRef = useRef<HTMLDivElement>(null)
+  const [showQaHistory, setShowQaHistory] = useState(false)
+  const focusedAnswerRef = useRef<HTMLDivElement>(null)
   const loginMouseRef = useRef<{ x: number; y: number }>({ x: 195, y: 300 })
 
   const [documents, setDocuments] = useState<HrDocument[]>([])
   const [docsLoading, setDocsLoading] = useState(false)
   const [docsLoaded, setDocsLoaded] = useState(false)
+  const [docsExpanded, setDocsExpanded] = useState(false)
 
   const [polls, setPolls] = useState<Poll[]>([])
   const [pollsLoading, setPollsLoading] = useState(false)
@@ -239,8 +251,10 @@ export default function Feed() {
     return () => { unsubMsg(); unsubUnread(); unsubMarked(); unsubDisabled(); unsubPoll(); unsubShowPolls(); unsubPasscode() }
   }, [employee])
 
+  // Reset the focused answer box to its top whenever a new question is asked or a new
+  // answer arrives, so the employee always sees the start of it without scrolling up.
   useEffect(() => {
-    qaEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (focusedAnswerRef.current) focusedAnswerRef.current.scrollTop = 0
   }, [qaHistory, asking])
 
   useEffect(() => {
@@ -327,8 +341,10 @@ export default function Feed() {
     setSelected(null)
     setShowUnreadOnly(false)
     setQaHistory([])
+    setShowQaHistory(false)
     setDocuments([])
     setDocsLoaded(false)
+    setDocsExpanded(false)
     setActiveTab('announcements')
   }
 
@@ -363,16 +379,19 @@ export default function Feed() {
     const q = question.trim()
     if (!q || asking) return
     setQuestion('')
+    setPendingQuestion(q)
+    setShowQaHistory(false)
     setAsking(true)
     const result = await window.hrWidget.askHr(q)
     setAsking(false)
     if (result.error) {
-      setQaHistory(prev => [...prev, { question: q, answerHtml: result.error!, sources: [], error: true }])
+      setQaHistory(prev => [...prev, { question: q, answerHtml: result.error!, sources: [], error: true, timestamp: Date.now() }])
     } else {
       setQaHistory(prev => [...prev, {
         question: q,
         answerHtml: renderMarkdown(result.answer ?? 'No answer returned.'),
         sources: result.sources ?? [],
+        timestamp: Date.now(),
       }])
     }
   }
@@ -687,11 +706,65 @@ export default function Feed() {
 
       {/* ── Policies (Ask AI + Documents) ── */}
       {activeTab === 'documents' && (
-        <div style={{ flex: 1, overflow: 'auto' }}>
-          {/* Ask AI section */}
-          <div style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+
+          {/* Collapsible document bar */}
+          <div style={{ flexShrink: 0 }}>
+            <button
+              onClick={() => setDocsExpanded(prev => !prev)}
+              style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.05)', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '9px 14px', color: '#ffffff', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
+            >
+              <span>📂 Browse Documents{docsLoaded ? ` (${documents.length})` : ''}</span>
+              <span style={{ color: 'rgba(255,255,255,0.50)', fontSize: 12, display: 'inline-block', transition: 'transform 0.15s', transform: docsExpanded ? 'rotate(180deg)' : 'none' }}>⌄</span>
+            </button>
+            {docsExpanded && (
+              <div style={{ maxHeight: 160, overflowY: 'auto', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                {docsLoading && (
+                  <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.50)', fontSize: 12, padding: '20px 0' }}>Loading…</p>
+                )}
+                {!docsLoading && documents.length === 0 && (
+                  <div style={{ textAlign: 'center', padding: '20px 14px' }}>
+                    <p style={{ fontSize: 22, marginBottom: 6 }}>📂</p>
+                    <p style={{ color: 'rgba(255,255,255,0.80)', fontSize: 11, fontWeight: 600 }}>No documents available</p>
+                  </div>
+                )}
+                {documents.map(doc => (
+                  <div
+                    key={doc.id}
+                    onClick={() => handleOpenDocument(doc)}
+                    style={{ padding: '9px 14px', borderBottom: '1px solid rgba(255,255,255,0.06)', cursor: doc.file_url ? 'pointer' : 'default', display: 'flex', alignItems: 'center', gap: 10, transition: 'background 0.1s' }}
+                    onMouseEnter={e => { if (doc.file_url) e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                  >
+                    <span style={{ fontSize: 18, flexShrink: 0 }}>
+                      {doc.file_type === 'pdf' ? '📕' : doc.file_type === 'docx' ? '📘' : '📄'}
+                    </span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 11.5, fontWeight: 600, color: '#ffffff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {doc.name}
+                      </div>
+                      <div style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.60)', marginTop: 1, display: 'flex', gap: 6, alignItems: 'center' }}>
+                        <span style={{ textTransform: 'uppercase' }}>{doc.file_type}</span>
+                        {doc.target_level && (
+                          <span style={{ background: 'rgba(99,102,241,0.20)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.30)', borderRadius: 4, padding: '1px 6px', fontSize: 8.5, fontWeight: 600 }}>
+                            {doc.target_level}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {doc.file_url && (
+                      <span style={{ fontSize: 9.5, color: theme.lightAccentText, flexShrink: 0 }}>Open ↗</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Focused conversation area */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, padding: '10px 14px' }}>
             {qaHistory.length === 0 && !asking && (
-              <div style={{ textAlign: 'center', padding: '20px 0' }}>
+              <div style={{ textAlign: 'center', margin: 'auto 0' }}>
                 <p style={{ fontSize: 28, marginBottom: 8 }}>🤖</p>
                 <p style={{ color: 'rgba(255,255,255,0.80)', fontSize: 12, fontWeight: 600 }}>Ask about company policies</p>
                 <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 11, marginTop: 4 }}>
@@ -699,97 +772,121 @@ export default function Feed() {
                 </p>
               </div>
             )}
-            {qaHistory.map((qa, i) => (
-              <div key={i} style={{ marginBottom: 16 }}>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6 }}>
-                  <div style={{ background: theme.primaryGradient, color: 'white', borderRadius: '12px 12px 2px 12px', padding: '7px 11px', fontSize: 12, maxWidth: '85%', lineHeight: 1.4 }}>
-                    {qa.question}
-                  </div>
-                </div>
-                <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: '2px 12px 12px 12px', padding: '10px 12px', maxWidth: '92%' }}>
-                  {qa.error ? (
-                    <span style={{ color: '#f87171', fontSize: 12 }}>{qa.answerHtml}</span>
-                  ) : (
+
+            {(qaHistory.length > 0 || asking) && !showQaHistory && (
+              <>
+                {(asking ? qaHistory.length : qaHistory.length - 1) > 0 && (
+                  <button
+                    onClick={() => setShowQaHistory(true)}
+                    style={{ alignSelf: 'flex-start', background: 'none', border: 'none', color: theme.lightAccentText, fontSize: 10.5, padding: '2px 0 8px', cursor: 'pointer' }}
+                  >
+                    ↑ {asking ? qaHistory.length : qaHistory.length - 1} earlier question{(asking ? qaHistory.length : qaHistory.length - 1) !== 1 ? 's' : ''}
+                  </button>
+                )}
+
+                <div ref={focusedAnswerRef} style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {!asking && qaHistory.length > 0 && (() => {
+                    const qa = qaHistory[qaHistory.length - 1]
+                    return (
+                      <>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                          <div style={{ background: theme.primaryGradient, color: 'white', borderRadius: '12px 12px 2px 12px', padding: '7px 11px', fontSize: 12, maxWidth: '85%', lineHeight: 1.4 }}>
+                            {qa.question}
+                          </div>
+                        </div>
+                        <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: '2px 12px 12px 12px', padding: '10px 12px' }}>
+                          {qa.error ? (
+                            <span style={{ color: '#f87171', fontSize: 12 }}>{qa.answerHtml}</span>
+                          ) : (
+                            <>
+                              <div dangerouslySetInnerHTML={{ __html: qa.answerHtml }} />
+                              {qa.sources.length > 0 && (
+                                <p style={{ margin: '8px 0 0', color: 'rgba(255,255,255,0.55)', fontSize: 10, borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 6 }}>
+                                  📄 {qa.sources.join(', ')}
+                                </p>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </>
+                    )
+                  })()}
+
+                  {asking && (
                     <>
-                      <div dangerouslySetInnerHTML={{ __html: qa.answerHtml }} />
-                      {qa.sources.length > 0 && (
-                        <p style={{ margin: '8px 0 0', color: 'rgba(255,255,255,0.55)', fontSize: 10, borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 6 }}>
-                          📄 {qa.sources.join(', ')}
-                        </p>
-                      )}
+                      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                        <div style={{ background: theme.primaryGradient, color: 'white', borderRadius: '12px 12px 2px 12px', padding: '7px 11px', fontSize: 12, maxWidth: '85%', lineHeight: 1.4 }}>
+                          {pendingQuestion}
+                        </div>
+                      </div>
+                      <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: '2px 12px 12px 12px', padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ width: 12, height: 12, borderRadius: '50%', border: `2px solid ${theme.lightAccentText}`, borderTopColor: 'transparent', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
+                        <span style={{ color: theme.lightAccentText, fontSize: 12 }}>Thinking…</span>
+                      </div>
                     </>
                   )}
                 </div>
-              </div>
-            ))}
-            {asking && (
-              <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: '2px 12px 12px 12px', padding: '10px 12px', maxWidth: '92%', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ width: 12, height: 12, borderRadius: '50%', border: `2px solid ${theme.lightAccentText}`, borderTopColor: 'transparent', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
-                <span style={{ color: theme.lightAccentText, fontSize: 12 }}>Thinking…</span>
-              </div>
+              </>
             )}
-            <div ref={qaEndRef} />
-            <form onSubmit={handleAsk} style={{ marginTop: 10, display: 'flex', gap: 8 }}>
-              <input
-                type="text"
-                value={question}
-                onChange={e => setQuestion(e.target.value)}
-                placeholder="Ask about a policy…"
-                disabled={asking}
-                style={{ ...S.input, flex: 1, fontSize: 12, padding: '7px 10px' }}
-              />
-              <button
-                type="submit"
-                disabled={!question.trim() || asking}
-                style={{ ...S.primaryBtn, background: theme.primaryGradient, padding: '7px 16px', fontSize: 12, opacity: (!question.trim() || asking) ? 0.5 : 1 }}
-              >
-                Ask
-              </button>
-            </form>
+
+            {showQaHistory && (
+              <>
+                <div style={{ flex: 1, overflowY: 'auto' }}>
+                  {qaHistory.map((qa, i) => (
+                    <div key={i} style={{ marginBottom: 16 }}>
+                      <div style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.40)', marginBottom: 4, textAlign: 'right' }}>
+                        {formatQaTimestamp(qa.timestamp)}
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6 }}>
+                        <div style={{ background: theme.primaryGradient, color: 'white', borderRadius: '12px 12px 2px 12px', padding: '7px 11px', fontSize: 12, maxWidth: '85%', lineHeight: 1.4 }}>
+                          {qa.question}
+                        </div>
+                      </div>
+                      <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: '2px 12px 12px 12px', padding: '10px 12px', maxWidth: '92%' }}>
+                        {qa.error ? (
+                          <span style={{ color: '#f87171', fontSize: 12 }}>{qa.answerHtml}</span>
+                        ) : (
+                          <>
+                            <div dangerouslySetInnerHTML={{ __html: qa.answerHtml }} />
+                            {qa.sources.length > 0 && (
+                              <p style={{ margin: '8px 0 0', color: 'rgba(255,255,255,0.55)', fontSize: 10, borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 6 }}>
+                                📄 {qa.sources.join(', ')}
+                              </p>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setShowQaHistory(false)}
+                  style={{ alignSelf: 'center', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)', color: 'rgba(255,255,255,0.80)', fontSize: 10.5, padding: '5px 12px', borderRadius: 12, cursor: 'pointer', marginTop: 8 }}
+                >
+                  ↓ Back to current
+                </button>
+              </>
+            )}
           </div>
 
-          {/* Documents section */}
-          <div>
-            {docsLoading && (
-              <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.50)', fontSize: 12, padding: '40px 0' }}>Loading…</p>
-            )}
-            {!docsLoading && documents.length === 0 && (
-              <div style={{ textAlign: 'center', padding: '40px 14px' }}>
-                <p style={{ fontSize: 28, marginBottom: 8 }}>📂</p>
-                <p style={{ color: 'rgba(255,255,255,0.80)', fontSize: 12, fontWeight: 600 }}>No documents available</p>
-                <p style={{ color: 'rgba(255,255,255,0.50)', fontSize: 11, marginTop: 4 }}>HR will upload documents here for your reference.</p>
-              </div>
-            )}
-            {documents.map(doc => (
-              <div
-                key={doc.id}
-                onClick={() => handleOpenDocument(doc)}
-                style={{ padding: '11px 14px', borderBottom: '1px solid rgba(255,255,255,0.06)', cursor: doc.file_url ? 'pointer' : 'default', display: 'flex', alignItems: 'center', gap: 10, transition: 'background 0.1s' }}
-                onMouseEnter={e => { if (doc.file_url) e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-              >
-                <span style={{ fontSize: 22, flexShrink: 0 }}>
-                  {doc.file_type === 'pdf' ? '📕' : doc.file_type === 'docx' ? '📘' : '📄'}
-                </span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: '#ffffff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {doc.name}
-                  </div>
-                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.60)', marginTop: 2, display: 'flex', gap: 6, alignItems: 'center' }}>
-                    <span style={{ textTransform: 'uppercase' }}>{doc.file_type}</span>
-                    {doc.target_level && (
-                      <span style={{ background: 'rgba(99,102,241,0.20)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.30)', borderRadius: 4, padding: '1px 6px', fontSize: 9, fontWeight: 600 }}>
-                        {doc.target_level}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                {doc.file_url && (
-                  <span style={{ fontSize: 10, color: theme.lightAccentText, flexShrink: 0 }}>Open ↗</span>
-                )}
-              </div>
-            ))}
-          </div>
+          {/* Input row, pinned at the bottom */}
+          <form onSubmit={handleAsk} style={{ flexShrink: 0, display: 'flex', gap: 8, padding: '9px 14px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+            <input
+              type="text"
+              value={question}
+              onChange={e => setQuestion(e.target.value)}
+              placeholder="Ask about a policy…"
+              disabled={asking}
+              style={{ ...S.input, flex: 1, fontSize: 12, padding: '7px 10px' }}
+            />
+            <button
+              type="submit"
+              disabled={!question.trim() || asking}
+              style={{ ...S.primaryBtn, background: theme.primaryGradient, padding: '7px 16px', fontSize: 12, opacity: (!question.trim() || asking) ? 0.5 : 1 }}
+            >
+              Ask
+            </button>
+          </form>
         </div>
       )}
 
