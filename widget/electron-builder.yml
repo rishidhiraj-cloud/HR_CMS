@@ -32,8 +32,13 @@ mac:
         - x64
         - arm64
   hardenedRuntime: false
-
-afterSign: scripts/afterSign.js
+  # No Developer ID Application certificate is available. Explicit `null` (rather
+  # than omitting this) tells electron-builder to ad-hoc sign via its own built-in
+  # signing step instead of skipping signing entirely — this runs at the correct
+  # point in the packaging pipeline (before the dmg target consumes the app), unlike
+  # a custom afterSign codesign call, which a from-scratch test proved gets silently
+  # invalidated ("invalid Info.plist") by the dmg-packaging step that runs after it.
+  identity: null
 
 dmg:
   title: HR Widget
